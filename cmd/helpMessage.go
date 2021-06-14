@@ -20,39 +20,28 @@
 
 package cmd
 
-import (
-	"fmt"
-	"os"
+var helpMessage = `
+ ____                                        ____ _            _    
+/ ___|  ___  __ _ _   _  ___ _ __   ___ ___ / ___| | ___   ___| | __
+\___ \ / _ \/ _\ | | | |/ _ \ '_ \ / __/ _ \ |   | |/ _ \ / __| |/ /
+ ___) |  __/ (_| | |_| |  __/ | | | (_|  __/ |___| | (_) | (__|   < 
+|____/ \___|\__, |\__,_|\___|_| |_|\___\___|\____|_|\___/ \___|_|\_\
+               |_|                                                  
 
-	"github.com/spf13/cobra"
-)
+                     🕔⏳ SequenceClock ⏳🕔
+              National Technical University of Athens
+            School of Electrical & Computer Engineering            
+                 Copyright © 2021 Giannis Fakinos
 
-var RootCmd = &cobra.Command{
-	Use:   "sc",
-	Short: "A latency targeting tool for serverless sequences of fuctions.",
-	Long:  helpMessage,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Hello from SequenceClock!")
-	},
-}
+           
+A latency targeting tool for serverless sequences of fuctions. With a
+certain time slack provided, SequenceClock will manage to execute a
+certain pipeline of actions/functions in the specified time duration. 
+Its configuration aims Kubernetes Clusters with Openfaas or Openwhisk
+deployed.
 
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
-
-func init() {
-	RootCmd.AddCommand(create)
-	RootCmd.AddCommand(delete)
-	RootCmd.AddCommand(version)
-}
-
-var version = &cobra.Command{
-	Use:   "version",
-	Short: "Print the version of SequenceClock tool.",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("SequenceClock v1.0 - Copyright © 2021 Giannis Fakinos")
-	},
-}
+Examples of usage:
+					
+	sc create my-awesome-sequence --list step1, step2, step3
+	sc delete my-cool-sequence
+`

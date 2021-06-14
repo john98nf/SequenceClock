@@ -22,37 +22,22 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
 
-var RootCmd = &cobra.Command{
-	Use:   "sc",
-	Short: "A latency targeting tool for serverless sequences of fuctions.",
-	Long:  helpMessage,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Hello from SequenceClock!")
-	},
-}
-
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
-
 func init() {
-	RootCmd.AddCommand(create)
-	RootCmd.AddCommand(delete)
-	RootCmd.AddCommand(version)
 }
 
-var version = &cobra.Command{
-	Use:   "version",
-	Short: "Print the version of SequenceClock tool.",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("SequenceClock v1.0 - Copyright © 2021 Giannis Fakinos")
+var delete = &cobra.Command{
+	Use:   "delete <sequence-name>...",
+	Short: "Delete an existing function sequence.",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		for _, seq := range args {
+			// TO DO: actual implementation
+			fmt.Printf("Sequence %v deleted.\n", seq)
+		}
+		return nil
 	},
 }
