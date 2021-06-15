@@ -22,40 +22,17 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
 
-var RootCmd = &cobra.Command{
-	Use:   "sc",
-	Short: "A latency targeting tool for serverless sequences of fuctions.",
-	Long:  helpMessage,
+var check = &cobra.Command{
+	Use:   "check",
+	Short: "Check kubernetes cluster for deployed sc pods",
 	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Hello from SequenceClock!")
-	},
-}
-
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
-
-func init() {
-	RootCmd.AddCommand(create)
-	RootCmd.AddCommand(check)
-	RootCmd.AddCommand(delete)
-	RootCmd.AddCommand(version)
-}
-
-var version = &cobra.Command{
-	Use:   "version",
-	Short: "Print the version of SequenceClock tool.",
-	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("SequenceClock v1.0 - Copyright © 2021 Giannis Fakinos")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// TO DO: actual implementation
+		fmt.Println("SequenceClock is deployed inside cluster.")
+		return nil
 	},
 }

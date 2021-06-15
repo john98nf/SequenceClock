@@ -22,19 +22,30 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 func init() {
+	create.Flags().StringVarP(&sequenceName, "name", "n", "", "Sequence name (required)")
+	create.MarkFlagRequired("name")
+	create.Flags().StringSliceVarP(&sequenceList, "list", "l", []string{}, "List of functions in the sequence (required)")
+	create.MarkFlagRequired("list")
 }
 
-var create = &cobra.Command{
-	Use:   "create",
-	Short: "Create a new function sequence.",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// TO DO: implementation
-		fmt.Println("New sequence generated.")
-		return nil
-	},
-}
+var (
+	sequenceName string
+	sequenceList []string
+	create       = &cobra.Command{
+		Use:   "create",
+		Short: "Create a new function sequence.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// TO DO: implementation
+			fmt.Printf("New sequence '%v' generated.\n", sequenceName)
+			fmt.Println("Pipeline:", strings.Join(sequenceList, ", "))
+			return nil
+		},
+	}
+)

@@ -27,17 +27,20 @@ import (
 )
 
 func init() {
+	delete.Flags().StringVarP(&deletionSequence, "name", "n", "", "Sequence name (required)")
+	delete.MarkFlagRequired("name")
 }
 
-var delete = &cobra.Command{
-	Use:   "delete <sequence-name>...",
-	Short: "Delete an existing function sequence.",
-	Args:  cobra.MinimumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		for _, seq := range args {
+var (
+	deletionSequence string
+	delete           = &cobra.Command{
+		Use:   "delete",
+		Short: "Delete an existing function sequence.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
 			// TO DO: actual implementation
-			fmt.Printf("Sequence %v deleted.\n", seq)
-		}
-		return nil
-	},
-}
+			fmt.Printf("Sequence %v deleted.\n", deletionSequence)
+			return nil
+		},
+	}
+)
