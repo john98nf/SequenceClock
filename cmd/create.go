@@ -67,8 +67,17 @@ var (
 			}
 			defer f.Close()
 
-			if _, err5 := f.Write(controllerTemplates.ImportsTemplate()); err5 != nil {
-				return err5
+			_, err := f.Write(controllerTemplates.ImportsTemplate())
+			if err != nil {
+				return err
+			}
+			_, err = f.Write(controllerTemplates.FunctionListTemplate(sequenceList))
+			if err != nil {
+				return err
+			}
+			_, err = f.Write(controllerTemplates.MainTemplate())
+			if err != nil {
+				return err
 			}
 
 			fmt.Printf("New sequence '%v' generated.\n", sequenceName)

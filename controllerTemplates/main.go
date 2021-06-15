@@ -30,19 +30,28 @@ func ImportsTemplate() []byte {
 
 import (
 	"fmt"
+	"log"
 )
 
 `)
 }
 
-func FunctionListTemplate(list []string) ([]byte, error) {
-	if len(list) <= 1 {
-		return []byte{}, fmt.Errorf("please provide a certain list of functions.")
-	}
-
-	return []byte(fmt.Sprintf("var functionList = [...]string{%v}\n\n", strings.Join(list, ","))), nil
+func FunctionListTemplate(list []string) []byte {
+	return []byte(fmt.Sprintf("var functionList = [...]string{%v}\n\n", strings.Join(list, ",")))
 }
 
-func MainTemplate() {
-	fmt.Println("Hello from template")
+func MainTemplate() []byte {
+	return []byte(`func Main(obj map[string]interface{}) map[string]interface{} {
+	name, ok := obj["name"].(string)
+	if !ok {
+	name = "world"
+	}
+	
+	msg := make(map[string]interface{})
+	msg["message"] = "Hello, " + name + "!"
+	log.Printf("name=%s\n", name)
+	
+	return msg
+}
+`)
 }
