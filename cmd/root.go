@@ -32,13 +32,16 @@ import (
 
 var (
 	appDirectory string
+	apihost      string
+	namespace    string
+	authToken    string
 	RootCmd      = &cobra.Command{
 		Use:   "sc",
 		Short: "A latency targeting tool for serverless sequences of fuctions.",
 		Long:  helpMessage,
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Hello from SequenceClock!")
+			fmt.Println("Hello from SequenceClock!⏳🕔")
 		},
 	}
 )
@@ -67,8 +70,7 @@ func initConfig() {
 			log.Fatal(err2)
 		}
 	}
-	// Search config in home directory with name
-	// ".cobra" (without extension).
+
 	viper.AddConfigPath(appDirectory)
 	viper.SetConfigType("yaml")
 	viper.SetConfigName("config")
@@ -76,8 +78,23 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	if err3 := viper.ReadInConfig(); err3 != nil {
-		log.Fatal(err3)
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			fmt.Println("Please create a 'config.yaml' inside ~/.sequenceClock folder.")
+			fmt.Printf("An example could be the following:\n\n")
+			fmt.Println(`OpenWhiskClusterInfo:
+	apihost: "x.x.x.x:31001"
+	namespace: "_"
+	authToken: "4242"`)
+			fmt.Println()
+			os.Exit(1)
+		} else {
+			log.Fatal(err3)
+		}
 	}
+
+	apihost = viper.Get("OpenWhiskClusterInfo.apihost").(string)
+	namespace = viper.Get("OpenWhiskClusterInfo.namespace").(string)
+	authToken = viper.Get("OpenWhiskClusterInfo.authToken").(string)
 }
 
 var version = &cobra.Command{
