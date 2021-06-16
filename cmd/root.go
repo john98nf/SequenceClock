@@ -22,20 +22,26 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-var RootCmd = &cobra.Command{
-	Use:   "sc",
-	Short: "A latency targeting tool for serverless sequences of fuctions.",
-	Long:  helpMessage,
-	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Hello from SequenceClock!")
-	},
-}
+var (
+	appDirectory string
+	RootCmd      = &cobra.Command{
+		Use:   "sc",
+		Short: "A latency targeting tool for serverless sequences of fuctions.",
+		Long:  helpMessage,
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("Hello from SequenceClock!")
+		},
+	}
+)
 
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
@@ -45,10 +51,33 @@ func Execute() {
 }
 
 func init() {
+	cobra.OnInitialize(initConfig)
 	RootCmd.AddCommand(create)
 	RootCmd.AddCommand(check)
 	RootCmd.AddCommand(delete)
 	RootCmd.AddCommand(version)
+}
+
+func initConfig() {
+	home, err := homedir.Dir()
+	cobra.CheckErr(err)
+	appDirectory = home + "/.sequenceClock"
+	if _, err1 := os.Stat(appDirectory); os.IsNotExist(err1) {
+		if err2 := os.Mkdir(appDirectory, 0755); err2 != nil {
+			log.Fatal(err2)
+		}
+	}
+	// Search config in home directory with name
+	// ".cobra" (without extension).
+	viper.AddConfigPath(appDirectory)
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("config")
+
+	viper.AutomaticEnv()
+
+	if err3 := viper.ReadInConfig(); err3 != nil {
+		log.Fatal(err3)
+	}
 }
 
 var version = &cobra.Command{

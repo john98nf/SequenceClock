@@ -21,7 +21,7 @@
 package cmd
 
 import (
-	"SequenceClock/controllerTemplates"
+	"SequenceClock/internal/controllerTemplates"
 	"fmt"
 	"os"
 	"strings"
@@ -49,18 +49,6 @@ var (
 				return fmt.Errorf("please provide at least 2 functions for the creation.")
 			}
 
-			homedir, err1 := os.UserHomeDir()
-			if err1 != nil {
-				return err1
-			}
-			appDirectory := homedir + "/sequenceClock"
-			_, err2 := os.Stat(appDirectory)
-			if os.IsNotExist(err2) {
-				err3 := os.Mkdir(appDirectory, 0755)
-				if err3 != nil {
-					return err3
-				}
-			}
 			f, err4 := os.Create(fmt.Sprintf("%v/%v.go", appDirectory, sequenceName))
 			if err4 != nil {
 				return err4
