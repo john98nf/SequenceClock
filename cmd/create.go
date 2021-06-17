@@ -21,7 +21,9 @@
 package cmd
 
 import (
+	"SequenceClock/internal/controllerTemplates"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -43,6 +45,29 @@ var (
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// TO DO: implementation
+			if len(sequenceList) <= 1 {
+				return fmt.Errorf("please provide at least 2 functions for the creation.")
+			}
+
+			f, err4 := os.Create(fmt.Sprintf("%v/%v.go", appDirectory, sequenceName))
+			if err4 != nil {
+				return err4
+			}
+			defer f.Close()
+
+			_, err := f.Write(controllerTemplates.ImportsTemplate())
+			if err != nil {
+				return err
+			}
+			_, err = f.Write(controllerTemplates.FunctionListTemplate(sequenceList))
+			if err != nil {
+				return err
+			}
+			_, err = f.Write(controllerTemplates.MainTemplate())
+			if err != nil {
+				return err
+			}
+
 			fmt.Printf("New sequence '%v' generated.\n", sequenceName)
 			fmt.Println("Pipeline:", strings.Join(sequenceList, ", "))
 			return nil

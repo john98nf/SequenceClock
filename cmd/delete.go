@@ -22,7 +22,10 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 
+	"github.com/apache/openwhisk-client-go/whisk"
 	"github.com/spf13/cobra"
 )
 
@@ -37,10 +40,34 @@ var (
 		Use:   "delete",
 		Short: "Delete an existing function sequence.",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// TO DO: actual implementation
-			fmt.Printf("Sequence %v deleted.\n", deletionSequence)
-			return nil
+		Run: func(cmd *cobra.Command, args []string) {
+			wskConfig := &whisk.Config{
+				Host:      apihost,
+				Namespace: namespace,
+				AuthToken: authToken,
+				Insecure:  true,
+			}
+			client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
+			actions, _, _ := client.Actions.List("", nil)
+			if contains(actions, deletionSequence) {
+				_, err := client.Actions.Delete(deletionSequence)
+				if err != nil {
+					log.Fatal(err)
+				} else {
+					fmt.Printf("Sequence '%v' deleted.\n", deletionSequence)
+				}
+			} else {
+				fmt.Printf("No '%v' sequence detected.\n", deletionSequence)
+			}
 		},
 	}
 )
+
+func contains(actionSlice []whisk.Action, s string) bool {
+	for _, a := range actionSlice {
+		if s == a.Name {
+			return true
+		}
+	}
+	return false
+}
