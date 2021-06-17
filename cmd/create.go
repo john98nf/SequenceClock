@@ -43,34 +43,51 @@ var (
 		Use:   "create",
 		Short: "Create a new function sequence.",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// TO DO: implementation
+		PreRun: func(cmd *cobra.Command, args []string) {
 			if len(sequenceList) <= 1 {
-				return fmt.Errorf("please provide at least 2 functions for the creation.")
+				fmt.Println("Please provide at least 2 functions for the creation.")
 			}
 
 			f, err4 := os.Create(fmt.Sprintf("%v/%v.go", appDirectory, sequenceName))
 			if err4 != nil {
-				return err4
+				fmt.Println(err4)
 			}
 			defer f.Close()
 
 			_, err := f.Write(controllerTemplates.ImportsTemplate())
 			if err != nil {
-				return err
+				fmt.Println(err)
 			}
 			_, err = f.Write(controllerTemplates.FunctionListTemplate(sequenceList))
 			if err != nil {
-				return err
+				fmt.Println(err)
 			}
 			_, err = f.Write(controllerTemplates.MainTemplate())
 			if err != nil {
-				return err
+				fmt.Println(err)
 			}
-
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			// wskConfig := &whisk.Config{
+			// 	Host:      apihost,
+			// 	Namespace: namespace,
+			// 	AuthToken: authToken,
+			// 	Insecure:  true,
+			// }
+			// client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
+			// newAction := whisk.Action{
+			// 	Namespace: namespace,
+			// 	Name:      sequenceName,
+			// 	Version:   "v1",
+			// }
+			// newAction.Exec = &whisk.Exec{
+			// 	Kind: "Go:1.15",
+			// 	Code: <???>,
+			// 	Image: <???>,
+			// }
+			// _, resp, err := client.Actions.Insert(&newAction, true)
 			fmt.Printf("New sequence '%v' generated.\n", sequenceName)
 			fmt.Println("Pipeline:", strings.Join(sequenceList, ", "))
-			return nil
 		},
 	}
 )
