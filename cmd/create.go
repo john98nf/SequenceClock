@@ -23,9 +23,13 @@ package cmd
 import (
 	"SequenceClock/internal/controllerTemplates"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"strings"
 
+	"github.com/apache/openwhisk-client-go/whisk"
 	"github.com/spf13/cobra"
 )
 
@@ -68,24 +72,31 @@ var (
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			// wskConfig := &whisk.Config{
-			// 	Host:      apihost,
-			// 	Namespace: namespace,
-			// 	AuthToken: authToken,
-			// 	Insecure:  true,
-			// }
-			// client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
-			// newAction := whisk.Action{
-			// 	Namespace: namespace,
-			// 	Name:      sequenceName,
-			// 	Version:   "v1",
-			// }
-			// newAction.Exec = &whisk.Exec{
-			// 	Kind: "Go:1.15",
-			// 	Code: <???>,
-			// 	Image: <???>,
-			// }
-			// _, resp, err := client.Actions.Insert(&newAction, true)
+			wskConfig := &whisk.Config{
+				Host:      apihost,
+				Namespace: namespace,
+				AuthToken: authToken,
+				Insecure:  true,
+			}
+			client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
+			newAction := whisk.Action{
+				Namespace: namespace,
+				Name:      sequenceName,
+			}
+			newAction.Exec = new(whisk.Exec)
+			newAction.Exec.Kind = "go:1.15"
+			file, err := ioutil.ReadFile(fmt.Sprintf("%v/%v.go", appDirectory, sequenceName))
+			if err != nil {
+				log.Fatal(err)
+			}
+			code := string(file)
+			newAction.Exec.Code = &code
+
+			res, resp, err := client.Actions.Insert(&newAction, true)
+			fmt.Println(res)
+			fmt.Println(resp)
+			fmt.Println(err)
+
 			fmt.Printf("New sequence '%v' generated.\n", sequenceName)
 			fmt.Println("Pipeline:", strings.Join(sequenceList, ", "))
 		},

@@ -29,7 +29,6 @@ func ImportsTemplate() []byte {
 	return []byte(`package main
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -37,7 +36,7 @@ import (
 }
 
 func FunctionListTemplate(list []string) []byte {
-	return []byte(fmt.Sprintf("var functionList = [...]string{%v}\n\n", strings.Join(list, ",")))
+	return []byte(fmt.Sprintf("var functionList = [...]string{\"%v\"}\n\n", strings.Join(list, "\",\"")))
 }
 
 func MainTemplate() []byte {
