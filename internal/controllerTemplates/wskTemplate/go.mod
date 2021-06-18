@@ -1,4 +1,4 @@
-module controllerTemplates
+module wskTemplate
 
 go 1.15
 
