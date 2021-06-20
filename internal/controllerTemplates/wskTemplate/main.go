@@ -33,13 +33,11 @@ import (
 	"github.com/apache/openwhisk-client-go/whisk"
 )
 
-var functionList = [...]string{}
-
 func Main(obj map[string]interface{}) map[string]interface{} {
 	wskConfig := &whisk.Config{
-		Host:      "",
-		Namespace: "",
-		AuthToken: "",
+		Host:      apihost,
+		Namespace: namespace,
+		AuthToken: authToken,
 		Insecure:  true,
 	}
 	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)

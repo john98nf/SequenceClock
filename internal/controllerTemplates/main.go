@@ -22,35 +22,50 @@ package controllerTemplates
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
-func ImportsTemplate() []byte {
-	return []byte(`package main
+/*
+	Add proper var definitions to
+	main.go of template.
+*/
+func FunctionListTemplate(
+	fileName string,
+	functionList []string,
+	apihost,
+	namespace,
+	authToken string) error {
 
-import (
-	"log"
-)
-
-`)
-}
-
-func FunctionListTemplate(list []string) []byte {
-	return []byte(fmt.Sprintf("var functionList = [...]string{\"%v\"}\n\n", strings.Join(list, "\",\"")))
-}
-
-func MainTemplate() []byte {
-	return []byte(`func Main(obj map[string]interface{}) map[string]interface{} {
-	name, ok := obj["name"].(string)
-	if !ok {
-	name = "world"
+	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return err
 	}
-	
-	msg := make(map[string]interface{})
-	msg["message"] = "Hello, " + name + "!"
-	log.Printf("name=%s\n", name)
-	
-	return msg
+	defer f.Close()
+
+	varDefinitions := fmt.Sprintf(`var (
+		apihost string = "%v"
+		namespace string = "%v"
+		authToken string = "%v"
+		var functionList = [...]string{%v}
+)`, apihost, namespace, authToken, strings.Join(functionList, "\",\""))
+
+	if _, err = f.WriteString(varDefinitions); err != nil {
+		return err
+	}
+	return nil
 }
-`)
+
+/*
+	Copy given template to appFolder.
+*/
+func CreateTemplate(sequenceName, appFolder string) error {
+	// To Do get code from github directly
+	// Temporary solution get template from source code
+	if errDir := os.Mkdir(appFolder+"/"+sequenceName, 0755); errDir != nil {
+		if !os.IsExist(errDir) {
+			return errDir
+		}
+	}
+	return copyTemplate("./internal/controllerTemplates/wskTemplate", appFolder+"/"+sequenceName)
 }

@@ -23,13 +23,9 @@ package cmd
 import (
 	"SequenceClock/internal/controllerTemplates"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
 	"os"
 	"strings"
 
-	"github.com/apache/openwhisk-client-go/whisk"
 	"github.com/spf13/cobra"
 )
 
@@ -50,52 +46,40 @@ var (
 		PreRun: func(cmd *cobra.Command, args []string) {
 			if len(sequenceList) <= 1 {
 				fmt.Println("Please provide at least 2 functions for the creation.")
+				os.Exit(-1)
 			}
 
-			f, err4 := os.Create(fmt.Sprintf("%v/%v.go", appDirectory, sequenceName))
-			if err4 != nil {
-				fmt.Println(err4)
-			}
-			defer f.Close()
-
-			_, err := f.Write(controllerTemplates.ImportsTemplate())
-			if err != nil {
-				fmt.Println(err)
-			}
-			_, err = f.Write(controllerTemplates.FunctionListTemplate(sequenceList))
-			if err != nil {
-				fmt.Println(err)
-			}
-			_, err = f.Write(controllerTemplates.MainTemplate())
-			if err != nil {
-				fmt.Println(err)
+			errT := controllerTemplates.CreateTemplate(sequenceName, appDirectory)
+			if errT != nil {
+				fmt.Println(errT)
+				os.Exit(-1)
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			wskConfig := &whisk.Config{
-				Host:      apihost,
-				Namespace: namespace,
-				AuthToken: authToken,
-				Insecure:  true,
-			}
-			client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
-			newAction := whisk.Action{
-				Namespace: namespace,
-				Name:      sequenceName,
-			}
-			newAction.Exec = new(whisk.Exec)
-			newAction.Exec.Kind = "go:1.15"
-			file, err := ioutil.ReadFile(fmt.Sprintf("%v/%v.go", appDirectory, sequenceName))
-			if err != nil {
-				log.Fatal(err)
-			}
-			code := string(file)
-			newAction.Exec.Code = &code
+			// wskConfig := &whisk.Config{
+			// 	Host:      apihost,
+			// 	Namespace: namespace,
+			// 	AuthToken: authToken,
+			// 	Insecure:  true,
+			// }
+			// client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
+			// newAction := whisk.Action{
+			// 	Namespace: namespace,
+			// 	Name:      sequenceName,
+			// }
+			// newAction.Exec = new(whisk.Exec)
+			// newAction.Exec.Kind = "go:1.15"
+			// file, err := ioutil.ReadFile(fmt.Sprintf("%v/%v.go", appDirectory, sequenceName))
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
+			// code := string(file)
+			// newAction.Exec.Code = &code
 
-			res, resp, err := client.Actions.Insert(&newAction, true)
-			fmt.Println(res)
-			fmt.Println(resp)
-			fmt.Println(err)
+			// res, resp, err := client.Actions.Insert(&newAction, true)
+			// fmt.Println(res)
+			// fmt.Println(resp)
+			// fmt.Println(err)
 
 			fmt.Printf("New sequence '%v' generated.\n", sequenceName)
 			fmt.Println("Pipeline:", strings.Join(sequenceList, ", "))
