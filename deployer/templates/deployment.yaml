@@ -44,6 +44,17 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          env:
+          - name: API_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: {{ .Release.Name }}-wsk-info-configmap
+                key: apihost
+          - name: NAMESPACE
+            valueFrom:
+              configMapKeyRef:
+                name: {{ .Release.Name }}-wsk-info-configmap
+                key: namespace
           livenessProbe:
             httpGet:
               path: /api/check
