@@ -55,6 +55,9 @@ spec:
               configMapKeyRef:
                 name: {{ .Release.Name }}-wsk-info-configmap
                 key: namespace
+          volumeMounts:
+          - name: openwhisk-auth
+            mountPath: "/etc/openwhisk-auth-token"
           livenessProbe:
             httpGet:
               path: /api/check
@@ -63,3 +66,8 @@ spec:
             httpGet:
               path: /api/check
               port: http
+      volumes:
+      - name: openwhisk-auth
+        secret:
+          secretName: {{ .Release.Name }}-openwhisk-secret
+          defaultMode: 0400
