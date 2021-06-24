@@ -1,9 +1,30 @@
+# Copyright © 2021 Giannis Fakinos
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 replicaCount: 1
-appname: sc-deployer
-namespace: sequence-clock
+appname: "sc-deployer"
 
 image:
-  repository: "192.168.1.243:5001/sequence-clock-deployer"
+  # TODO: Change image to john98nf/sequence-clock-deployer
+  # when repo becomes publicly available.
+  repository: "192.168.1.243:5001/sc-deployer"
   pullPolicy: Always
   tag: "1.0"
 
@@ -21,8 +42,9 @@ podSecurityContext: {}
 securityContext: {}
 
 service:
-  type: ClusterIP
-  port: 3000
+  type: NodePort
+  port: 42000
+  targetPort: 42000
 
 resources: {}
 

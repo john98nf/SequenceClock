@@ -21,13 +21,39 @@
 package main
 
 import (
-	"SequenceClock/cli/cmd"
-)
+	"fmt"
 
-const (
-	APP_VER = "1.0"
+	"github.com/kataras/iris/v12"
 )
 
 func main() {
-	cmd.Execute()
+	app := iris.New()
+
+	deployerAPI := app.Party("/api")
+	{
+		deployerAPI.Use(iris.Compression)
+
+		// GET: http://localhost:8080/api/check
+		deployerAPI.Get("/check", check)
+		// POST: http://localhost:8080/api/create?name=x
+		deployerAPI.Post("/create", create)
+		// DELETE: http://localhost:8080/api/delete?name=x
+		deployerAPI.Delete("/delete", delete)
+	}
+
+	app.Listen(":42000")
+}
+
+func check(ctx iris.Context) {
+	ctx.Text("SC-Deployer is fully functional!")
+}
+
+func create(ctx iris.Context) {
+	sequence := ctx.URLParam("name")
+	ctx.WriteString(fmt.Sprintf("Create request for %v", sequence))
+}
+
+func delete(ctx iris.Context) {
+	sequence := ctx.URLParam("name")
+	ctx.WriteString(fmt.Sprintf("Delete request for %v", sequence))
 }
