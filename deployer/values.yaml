@@ -22,7 +22,6 @@ replicaCount: 1
 
 appname: "sc-deployer"
 openwhisk:
-  apihost: ""
   namespace: "_"
 
 image:
