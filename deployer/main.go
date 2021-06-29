@@ -85,5 +85,33 @@ func create(ctx iris.Context) {
 */
 func delete(ctx iris.Context) {
 	sequence := ctx.URLParam("name")
-	ctx.WriteString(fmt.Sprintf("Delete request for %v", sequence))
+
+	wskConfig := &whisk.Config{
+		Host:      os.Getenv("API_HOST"),
+		Namespace: os.Getenv("NAMESPACE"),
+		AuthToken: os.Getenv("OPENWHISK_AUTH_TOKEN"),
+		Insecure:  true,
+	}
+	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
+	actions, _, _ := client.Actions.List("", nil)
+
+	if contains(actions, sequence) {
+		if _, err := client.Actions.Delete(sequence); err != nil {
+			log.Println(err)
+			ctx.Text("Something went wrong")
+		} else {
+			ctx.Text(fmt.Sprintf("Sequence '%v' deleted.", sequence))
+		}
+	} else {
+		ctx.Text(fmt.Sprintf("No '%v' sequence detected.\n", sequence))
+	}
+}
+
+func contains(actionSlice []whisk.Action, s string) bool {
+	for _, a := range actionSlice {
+		if s == a.Name {
+			return true
+		}
+	}
+	return false
 }
