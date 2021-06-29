@@ -95,7 +95,14 @@ func delete(ctx iris.Context) {
 	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
 	actions, _, _ := client.Actions.List("", nil)
 
-	if contains(actions, sequence) {
+	if func(a []whisk.Action, s string) bool {
+		for _, a := range a {
+			if s == a.Name {
+				return true
+			}
+		}
+		return false
+	}(actions, sequence) {
 		if _, err := client.Actions.Delete(sequence); err != nil {
 			log.Println(err)
 			ctx.Text("Something went wrong")
@@ -105,13 +112,4 @@ func delete(ctx iris.Context) {
 	} else {
 		ctx.Text(fmt.Sprintf("No '%v' sequence detected.\n", sequence))
 	}
-}
-
-func contains(actionSlice []whisk.Action, s string) bool {
-	for _, a := range actionSlice {
-		if s == a.Name {
-			return true
-		}
-	}
-	return false
 }
