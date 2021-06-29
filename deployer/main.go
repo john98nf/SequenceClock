@@ -22,6 +22,10 @@ package main
 
 import (
 	"fmt"
+	"log"
+
+	sequence "internal/sequence"
+	tpl "internal/templateHandler"
 
 	"github.com/kataras/iris/v12"
 )
@@ -31,8 +35,6 @@ func main() {
 
 	deployerAPI := app.Party("/api")
 	{
-		deployerAPI.Use(iris.Compression)
-
 		// GET: http://localhost:8080/api/check
 		deployerAPI.Get("/check", check)
 		// POST: http://localhost:8080/api/create?name=x
@@ -44,15 +46,32 @@ func main() {
 	app.Listen(":42000")
 }
 
+/*
+	Liveness & Readiness call.
+*/
 func check(ctx iris.Context) {
 	ctx.Text("SC-Deployer is fully functional!")
 }
 
+/*
+	API call for creating a new sequence
+	and deploying it to cluster.
+*/
 func create(ctx iris.Context) {
-	sequence := ctx.URLParam("name")
-	ctx.WriteString(fmt.Sprintf("Create request for %v", sequence))
+	name := ctx.URLParam("name")
+	seq := sequence.NewSequence(name, "openwhisk", "_", "f1", "f2")
+	template := tpl.NewTemplate()
+	if err := template.CreateBase(seq.Name); err != nil {
+		log.Println(err)
+		ctx.Text("Something went wrong.")
+	} else {
+		ctx.Text(fmt.Sprintf("Create request for %v", name))
+	}
 }
 
+/*
+	API call for deleting a sequence
+*/
 func delete(ctx iris.Context) {
 	sequence := ctx.URLParam("name")
 	ctx.WriteString(fmt.Sprintf("Delete request for %v", sequence))
