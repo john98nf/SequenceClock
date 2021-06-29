@@ -18,9 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Ignore helm chart folder
-chart
-
-# Ignore executable
+# Ignore executables
 *.exec
 deployer
