@@ -7,36 +7,54 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/apache/openwhisk-client-go/whisk"
+
+	sq "john98nf/SequenceClock/deployer/internal/sequence"
+)
+
+const (
+	MAIN_HANDLER string = "main.go"
+	CONSTANTS    string = `var (
+	apihost string = "%v"
+	namespace string = "%v"
+	authToken string = "%v"
+	functionList = [...]string{%v}
+)
+`
 )
 
 type TemplateInterface interface {
 	CreateBase() error
-	// AddServerlessFunction() error
 }
 
 type Template struct {
-	// Sequence *sq.Sequence
-	// Client   *whisk.Client
+	Sequence *sq.Sequence
+	Client   *whisk.Client
 }
 
 /*
 	Creates a new Template struct.
 */
-func NewTemplate() *Template {
-	return &Template{}
+func NewTemplate(sequence *sq.Sequence, client *whisk.Client) *Template {
+	return &Template{
+		Sequence: sequence,
+		Client:   client,
+	}
 }
 
 /*
 	Copies controller template and
 	creates a zip folder <sequenceName>.zip.
 */
-func (tpl *Template) CreateBase(name string) error {
+func (tpl *Template) CreateBase() error {
 	execPath, errP := execPath()
 	if errP != nil {
 		return fmt.Errorf("couldn't found executable path")
 	}
-	baseFolder := execPath + "/controller"
-	outFile, err := os.Create(fmt.Sprintf("%v/%v.zip", execPath, name))
+	baseFolder := execPath + "/controller/" + tpl.Sequence.Framework + "/"
+	outFile, err := os.Create(fmt.Sprintf("%v/%v.zip", execPath, tpl.Sequence.Name))
 	if err != nil {
 		return fmt.Errorf("couldn't create zip archive for controller")
 	}
@@ -71,11 +89,14 @@ func addFiles(w *zip.Writer, basePath, baseInZip string) error {
 				log.Println(errR)
 				return errR
 			}
-
 			f, errF := w.Create(baseInZip + file.Name())
 			if errF != nil {
 				log.Println(errF)
 				return errF
+			}
+			if file.Name() == MAIN_HANDLER {
+				constDef := []byte(fmt.Sprintf(CONSTANTS, "0.0.0.0:31001", "_", "1234abcd", "\""+strings.Join([]string{"f1", "f2"}, "\",\"")+"\""))
+				dat = append(dat, constDef...)
 			}
 			_, errW := f.Write(dat)
 			if errW != nil {
@@ -100,47 +121,3 @@ func execPath() (string, error) {
 	}
 	return filepath.Dir(ex), nil
 }
-
-/*
-	Add proper var definitions to
-	main.go of template.
-*/
-// func FunctionListTemplate(
-// 	fileName string,
-// 	functionList []string,
-// 	apihost,
-// 	namespace,
-// 	authToken string) error {
-
-// 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer f.Close()
-
-// 	varDefinitions := fmt.Sprintf(`var (
-// 		apihost string = "%v"
-// 		namespace string = "%v"
-// 		authToken string = "%v"
-// 		var functionList = [...]string{%v}
-// )`, apihost, namespace, authToken, strings.Join(functionList, "\",\""))
-
-// 	if _, err = f.WriteString(varDefinitions); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-/*
-	Copy given template to appFolder.
-*/
-// func CreateTemplate(sequenceName, appFolder string) error {
-// 	// To Do get code from github directly
-// 	// Temporary solution get template from source code
-// 	if errDir := os.Mkdir(appFolder+"/"+sequenceName, 0755); errDir != nil {
-// 		if !os.IsExist(errDir) {
-// 			return errDir
-// 		}
-// 	}
-// 	return copyTemplate("./internal/controllerTemplates/wskTemplate", appFolder+"/"+sequenceName)
-// }

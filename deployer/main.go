@@ -23,10 +23,13 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
+	"os"
 
-	sequence "internal/sequence"
-	tpl "internal/templateHandler"
+	sequence "john98nf/SequenceClock/deployer/internal/sequence"
+	tpl "john98nf/SequenceClock/deployer/internal/templateHandler"
 
+	"github.com/apache/openwhisk-client-go/whisk"
 	"github.com/kataras/iris/v12"
 )
 
@@ -60,13 +63,21 @@ func check(ctx iris.Context) {
 func create(ctx iris.Context) {
 	name := ctx.URLParam("name")
 	seq := sequence.NewSequence(name, "openwhisk", "_", "f1", "f2")
-	template := tpl.NewTemplate()
-	if err := template.CreateBase(seq.Name); err != nil {
+	wskConfig := &whisk.Config{
+		Host:      os.Getenv("API_HOST"),
+		Namespace: os.Getenv("NAMESPACE"),
+		AuthToken: os.Getenv("OPENWHISK_AUTH_TOKEN"),
+		Insecure:  true,
+	}
+	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
+
+	template := tpl.NewTemplate(seq, client)
+	if err := template.CreateBase(); err != nil {
 		log.Println(err)
 		ctx.Text("Something went wrong.")
-	} else {
-		ctx.Text(fmt.Sprintf("Create request for %v", name))
+		return
 	}
+	ctx.Text(fmt.Sprintf("Create request for %v", name))
 }
 
 /*
