@@ -70,8 +70,9 @@ func (tpl *Template) Create() error {
 */
 func (tpl *Template) Deploy() error {
 	newAction := whisk.Action{
-		Namespace: tpl.Sequence.Namespace,
-		Name:      tpl.Sequence.Name,
+		Name:        tpl.Sequence.Name,
+		Namespace:   tpl.Sequence.Namespace,
+		Annotations: whisk.KeyValueArr{whisk.KeyValue{Key: "provide-api-key", Value: "true"}},
 	}
 	newAction.Exec = new(whisk.Exec)
 	newAction.Exec.Kind = GO_RUNTIME

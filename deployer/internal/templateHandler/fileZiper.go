@@ -11,14 +11,8 @@ import (
 )
 
 const (
-	MAIN_HANDLER string = "main.go"
-	VARIABLES    string = `var (
-	apihost string = "%v"
-	namespace string = "%v"
-	authToken string = "%v"
-	functionList = [...]string{%v}
-)
-`
+	MAIN_HANDLER  string = "main.go"
+	FUNCTION_LIST string = "var functionList = [...]string{\"%v\"}"
 )
 
 type fileZiper struct {
@@ -70,7 +64,7 @@ func addFiles(w *zip.Writer, basePath, baseInZip string) error {
 				return errF
 			}
 			if file.Name() == MAIN_HANDLER {
-				varsDef := []byte(fmt.Sprintf(VARIABLES, "0.0.0.0:31001", "_", "1234abcd", "\""+strings.Join([]string{"f1", "f2"}, "\",\"")+"\""))
+				varsDef := []byte(fmt.Sprintf(FUNCTION_LIST, strings.Join([]string{"hello-go"}, "\",\"")))
 				dat = append(dat, varsDef...)
 			}
 			_, errW := f.Write(dat)

@@ -29,15 +29,16 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/apache/openwhisk-client-go/whisk"
 )
 
 func Main(obj map[string]interface{}) map[string]interface{} {
 	wskConfig := &whisk.Config{
-		Host:      apihost,
-		Namespace: namespace,
-		AuthToken: authToken,
+		Host:      os.Getenv("__OW_API_HOST"),
+		Namespace: os.Getenv("__OW_NAMESPACE"),
+		AuthToken: os.Getenv("__OW_API_KEY"),
 		Insecure:  true,
 	}
 	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
