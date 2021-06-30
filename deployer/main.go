@@ -72,12 +72,19 @@ func create(ctx iris.Context) {
 	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
 
 	template := tpl.NewTemplate(seq, client)
-	if err := template.CreateBase(); err != nil {
+	if err := template.Create(); err != nil {
 		log.Println(err)
 		ctx.Text("Something went wrong.")
 		return
 	}
-	ctx.Text(fmt.Sprintf("Create request for %v", name))
+
+	if err := template.Deploy(); err != nil {
+		log.Println(err)
+		ctx.Text("Something went wrong.")
+		return
+	}
+
+	ctx.Text(fmt.Sprintf("Create request for '%v'.", name))
 }
 
 /*
