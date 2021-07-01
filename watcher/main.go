@@ -21,7 +21,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 
@@ -59,7 +58,6 @@ func check(c *gin.Context) {
 */
 func speedUp(c *gin.Context) {
 	functionName := c.Query("name")
-	log.Println("SpeedUp request for function %v.", functionName)
 	c.String(http.StatusOK, "Watcher %v: SpeedUp request for function %v.", hostIP, functionName)
 }
 
@@ -69,6 +67,5 @@ func speedUp(c *gin.Context) {
 */
 func slowDown(c *gin.Context) {
 	functionName := c.Query("name")
-	log.Println("SpeedUp request for function %v.", functionName)
 	c.String(http.StatusOK, "Watcher %v: SpeedUp request for function %v.", hostIP, functionName)
 }
