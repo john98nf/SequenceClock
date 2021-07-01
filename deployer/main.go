@@ -21,7 +21,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -30,39 +29,39 @@ import (
 	tpl "john98nf/SequenceClock/deployer/internal/templateHandler"
 
 	"github.com/apache/openwhisk-client-go/whisk"
-	"github.com/kataras/iris/v12"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	app := iris.New()
+	router := gin.Default()
 
-	deployerAPI := app.Party("/api")
+	deployerAPI := router.Group("/api")
 	{
 		// GET: http://localhost:8080/api/check
-		deployerAPI.Get("/check", check)
+		deployerAPI.GET("/check", check)
 		// POST: http://localhost:8080/api/create?name=x
-		deployerAPI.Post("/create", create)
+		deployerAPI.POST("/create", create)
 		// DELETE: http://localhost:8080/api/delete?name=x
-		deployerAPI.Delete("/delete", delete)
+		deployerAPI.DELETE("/delete", delete)
 	}
 
-	app.Listen(":42000")
+	router.Run(":42000")
 }
 
 /*
 	Liveness & Readiness call.
 */
-func check(ctx iris.Context) {
-	ctx.Text("SC-Deployer is fully functional!")
+func check(c *gin.Context) {
+	c.String(http.StatusOK, "SC-Deployer is fully functional!")
 }
 
 /*
 	API call for creating a new sequence
 	and deploying it to cluster.
 */
-func create(ctx iris.Context) {
-	name := ctx.URLParam("name")
-	seq := sequence.NewSequence(name, "openwhisk", "_", "f1", "f2")
+func create(c *gin.Context) {
+	name := c.Query("name")
+	seq := sequence.NewSequence(name, "openwhisk", "_", "hello-go")
 	wskConfig := &whisk.Config{
 		Host:      os.Getenv("API_HOST"),
 		Namespace: os.Getenv("NAMESPACE"),
@@ -74,24 +73,24 @@ func create(ctx iris.Context) {
 	template := tpl.NewTemplate(seq, client)
 	if err := template.Create(); err != nil {
 		log.Println(err)
-		ctx.Text("Something went wrong.")
+		c.String(http.StatusInternalServerError, "Something went wrong.")
 		return
 	}
 
 	if err := template.Deploy(); err != nil {
 		log.Println(err)
-		ctx.Text("Something went wrong.")
+		c.String(http.StatusInternalServerError, "Something went wrong.")
 		return
 	}
 
-	ctx.Text(fmt.Sprintf("Create request for '%v'.", name))
+	c.String(http.StatusOK, "Create request for '%v'.", name)
 }
 
 /*
 	API call for deleting a sequence
 */
-func delete(ctx iris.Context) {
-	sequence := ctx.URLParam("name")
+func delete(c *gin.Context) {
+	sequence := c.Query("name")
 
 	wskConfig := &whisk.Config{
 		Host:      os.Getenv("API_HOST"),
@@ -112,11 +111,11 @@ func delete(ctx iris.Context) {
 	}(actions, sequence) {
 		if _, err := client.Actions.Delete(sequence); err != nil {
 			log.Println(err)
-			ctx.Text("Something went wrong")
+			c.String(http.StatusInternalServerError, "Something went wrong")
 		} else {
-			ctx.Text(fmt.Sprintf("Sequence '%v' deleted.", sequence))
+			c.String(http.StatusOK, "Sequence '%v' deleted.", sequence)
 		}
 	} else {
-		ctx.Text(fmt.Sprintf("No '%v' sequence detected.\n", sequence))
+		c.String(http.StatusForbidden, "No '%v' sequence detected.", sequence)
 	}
 }

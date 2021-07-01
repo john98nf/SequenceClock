@@ -18,11 +18,10 @@ const (
 type fileZiper struct {
 	dstFolder  string
 	baseFolder string
-	name       string
 }
 
 func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
-	zipFile := fmt.Sprintf("%v/%v.zip", obj.dstFolder, obj.name)
+	zipFile := fmt.Sprintf("%v/%v.zip", obj.dstFolder, seq.Name)
 	outFile, err := os.Create(zipFile)
 	if err != nil {
 		return "", fmt.Errorf("couldn't create zip archive")
@@ -30,7 +29,7 @@ func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
 	defer outFile.Close()
 
 	w := zip.NewWriter(outFile)
-	if errZ := addFiles(w, obj.baseFolder, ""); errZ != nil {
+	if errZ := addFiles(w, obj.baseFolder, "", seq.Functions); errZ != nil {
 		return "", fmt.Errorf("couldn't add files to archive")
 	}
 
@@ -44,7 +43,7 @@ func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
 	Recursive function that reads the contents of basePath
 	and moves them to a zip folder, provided by w *zip.Writer.
 */
-func addFiles(w *zip.Writer, basePath, baseInZip string) error {
+func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) error {
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
 		log.Println(err)
@@ -64,7 +63,7 @@ func addFiles(w *zip.Writer, basePath, baseInZip string) error {
 				return errF
 			}
 			if file.Name() == MAIN_HANDLER {
-				varsDef := []byte(fmt.Sprintf(FUNCTION_LIST, strings.Join([]string{"hello-go"}, "\",\"")))
+				varsDef := []byte(fmt.Sprintf(FUNCTION_LIST, strings.Join(functionList, "\",\"")))
 				dat = append(dat, varsDef...)
 			}
 			_, errW := f.Write(dat)
@@ -74,7 +73,7 @@ func addFiles(w *zip.Writer, basePath, baseInZip string) error {
 			}
 		} else if file.IsDir() {
 			newBase := basePath + file.Name() + "/"
-			return addFiles(w, newBase, baseInZip+file.Name()+"/")
+			return addFiles(w, newBase, baseInZip+file.Name()+"/", functionList)
 		}
 	}
 	return nil

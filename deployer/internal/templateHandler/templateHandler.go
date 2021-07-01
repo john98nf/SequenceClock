@@ -53,7 +53,6 @@ func (tpl *Template) Create() error {
 	fziper := &fileZiper{
 		dstFolder:  execPath,
 		baseFolder: OPENWHISK_CONTROLLER_TEMPLATE,
-		name:       tpl.Sequence.Name,
 	}
 	zipFile, errZ := fziper.zipTemplate(*tpl.Sequence)
 	if errZ != nil {
