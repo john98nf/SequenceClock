@@ -18,23 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.zip
-
-# Test binary, built with `go test -c`
-*.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-# Executable output of go build command
-SequenceClock
-sc
-cli
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
+apiVersion: v2
+name: sc-deployer
+description: A Helm chart for sc-deployer
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+maintainers:
+  - name: Giannis Fakinos

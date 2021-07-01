@@ -18,23 +18,28 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.zip
+FROM golang:1.15.11 as builder
 
-# Test binary, built with `go test -c`
-*.test
+LABEL maintainer="Giannis Fakinos"
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-# Executable output of go build command
-SequenceClock
-sc
-cli
+WORKDIR /app
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+COPY go.mod go.sum ./
+
+COPY . .
+
+RUN go mod download
+
+RUN GO111MODULE=on CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+
+######## Start a new stage from scratch #######
+FROM alpine:latest  
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/main .
+COPY --from=builder /app/internal/controller ./controller
+
+CMD ["./main"] 

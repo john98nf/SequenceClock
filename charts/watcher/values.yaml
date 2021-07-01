@@ -18,23 +18,33 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.zip
+replicaCount: 1
 
-# Test binary, built with `go test -c`
-*.test
+image:
+  repository: "192.168.1.243:5001/sequence-clock-watcher"
+  pullPolicy: Always
+  tag: "1.0"
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-# Executable output of go build command
-SequenceClock
-sc
-cli
+imagePullSecrets: []
+nameOverride: "watcher"
+fullnameOverride: "watcher"
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+resources: {}
+ 
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80

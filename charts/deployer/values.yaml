@@ -18,23 +18,47 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.zip
+replicaCount: 1
 
-# Test binary, built with `go test -c`
-*.test
+appname: "sc-deployer"
+openwhisk:
+  namespace: "_"
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-# Executable output of go build command
-SequenceClock
-sc
-cli
+image:
+  # TODO: Change image to john98nf/sequence-clock-deployer
+  # when repo becomes publicly available.
+  repository: "192.168.1.243:5001/sc-deployer"
+  pullPolicy: Always
+  tag: "1.0"
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+imagePullSecrets: []
+nameOverride: "sc-deployer"
+fullnameOverride: "sc-deployer"
+
+serviceAccount:
+  create: false
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: NodePort
+  port: 42000
+  targetPort: 42000
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,27 @@
+ 
+`____                                        ____ _            _    
+/ ___|  ___  __ _ _   _  ___ _ __   ___ ___ / ___| | ___   ___| | __
+\___ \ / _ \/ _\ | | | |/ _ \ '_ \ / __/ _ \ |   | |/ _ \ / __| |/ /
+ ___) |  __/ (_| | |_| |  __/ | | | (_|  __/ |___| | (_) | (__|   < 
+|____/ \___|\__, |\__,_|\___|_| |_|\___\___|\____|_|\___/ \___|_|\_\
+               |_|                                                  
+
+                     🕔⏳ SequenceClock ⏳🕔
+              National Technical University of Athens
+            School of Electrical & Computer Engineering            
+                 Copyright © 2021 Giannis Fakinos
+
+
+A  latency  targeting  tool for serverless sequences of fuctions.
+With  a certain time slack provided, SequenceClock will manage to
+execute  a certain pipeline of actions/functions in the specified
+time  duration.  Its  configuration aims Kubernetes Clusters with
+Openfaas or Openwhisk deployed.
+
+In order to get node ip & port type the following commands:
+        
+        export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "sc-deployer.fullname" . }}-service)
+        export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+        echo http://$NODE_IP:$NODE_PORT
+
+Thanks for trying SequenceClock!
