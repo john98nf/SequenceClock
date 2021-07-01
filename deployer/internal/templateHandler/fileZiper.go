@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	sq "john98nf/SequenceClock/deployer/internal/sequence"
-	"log"
 	"os"
 	"strings"
 )
@@ -14,6 +13,10 @@ const (
 	MAIN_HANDLER  string = "main.go"
 	FUNCTION_LIST string = "var functionList = [...]string{\"%v\"}"
 )
+
+type fileZiperInterface interface {
+	zipTemplate(seq sq.Sequence) (string, error)
+}
 
 type fileZiper struct {
 	dstFolder  string
@@ -46,7 +49,6 @@ func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
 func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) error {
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 
@@ -54,12 +56,10 @@ func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) 
 		if !file.IsDir() {
 			dat, errR := ioutil.ReadFile(basePath + file.Name())
 			if errR != nil {
-				log.Println(errR)
 				return errR
 			}
 			f, errF := w.Create(baseInZip + file.Name())
 			if errF != nil {
-				log.Println(errF)
 				return errF
 			}
 			if file.Name() == MAIN_HANDLER {
@@ -68,7 +68,6 @@ func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) 
 			}
 			_, errW := f.Write(dat)
 			if errW != nil {
-				log.Println(errW)
 				return errW
 			}
 		} else if file.IsDir() {

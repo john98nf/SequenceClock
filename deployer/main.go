@@ -72,14 +72,17 @@ func create(c *gin.Context) {
 
 	template := tpl.NewTemplate(seq, client)
 	if err := template.Create(); err != nil {
-		log.Println(err)
-		c.String(http.StatusInternalServerError, "Something went wrong.")
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	if err := template.Deploy(); err != nil {
-		log.Println(err)
-		c.String(http.StatusInternalServerError, "Something went wrong.")
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err := template.Delete(); err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -111,7 +114,7 @@ func delete(c *gin.Context) {
 	}(actions, sequence) {
 		if _, err := client.Actions.Delete(sequence); err != nil {
 			log.Println(err)
-			c.String(http.StatusInternalServerError, "Something went wrong")
+			c.String(http.StatusInternalServerError, err.Error())
 		} else {
 			c.String(http.StatusOK, "Sequence '%v' deleted.", sequence)
 		}
