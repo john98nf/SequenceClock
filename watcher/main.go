@@ -22,9 +22,12 @@ package main
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
+
+var hostIP string = os.Getenv("HOST_IP")
 
 func main() {
 	router := gin.Default()
@@ -38,5 +41,5 @@ func main() {
 }
 
 func check(c *gin.Context) {
-	c.String(http.StatusOK, "Hello from watcher!")
+	c.String(http.StatusOK, "Hello from watcher inside node %v!", hostIP)
 }
