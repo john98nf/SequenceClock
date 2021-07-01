@@ -73,7 +73,9 @@ func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) 
 			}
 		} else if file.IsDir() {
 			newBase := basePath + file.Name() + "/"
-			return addFiles(w, newBase, baseInZip+file.Name()+"/", functionList)
+			if errRec := addFiles(w, newBase, baseInZip+file.Name()+"/", functionList); errRec != nil {
+				return errRec
+			}
 		}
 	}
 	return nil
