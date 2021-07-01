@@ -21,23 +21,22 @@
 package main
 
 import (
-	"github.com/kataras/iris/v12"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	app := iris.New()
+	router := gin.Default()
 
-	watcherAPI := app.Party("/api")
+	apiWatcher := router.Group("/api")
 	{
-		watcherAPI.Use(iris.Compression)
-
-		// GET: http://localhost:8080/api/check
-		watcherAPI.Get("/check", check)
+		apiWatcher.GET("/check", check)
 	}
 
-	app.Listen(":8080")
+	router.Run(":8080")
 }
 
-func check(ctx iris.Context) {
-	ctx.Text("Hello from sc-watcher!")
+func check(c *gin.Context) {
+	c.String(http.StatusOK, "Hello from watcher!")
 }
