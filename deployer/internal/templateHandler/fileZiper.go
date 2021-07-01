@@ -10,8 +10,10 @@ import (
 )
 
 const (
-	MAIN_HANDLER  string = "main.go"
-	FUNCTION_LIST string = "var functionList = [...]string{\"%v\"}"
+	PACKAGE_DEFINITION string = `package main
+`
+	CONFIG_CONTROLLER_FILE string = "config.go"
+	FUNCTION_LIST          string = "var functionList = [...]string{\"%v\"}"
 )
 
 type fileZiperInterface interface {
@@ -32,8 +34,11 @@ func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
 	defer outFile.Close()
 
 	w := zip.NewWriter(outFile)
-	if errZ := addFiles(w, obj.baseFolder, "", seq.Functions); errZ != nil {
+	if errZ := addFiles(w, obj.baseFolder, ""); errZ != nil {
 		return "", fmt.Errorf("couldn't add files to archive")
+	}
+	if errC := addConfig(w, seq); errC != nil {
+		return "", fmt.Errorf("couldn't add config file to archive")
 	}
 
 	if err = w.Close(); err != nil {
@@ -46,7 +51,7 @@ func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
 	Recursive function that reads the contents of basePath
 	and moves them to a zip folder, provided by w *zip.Writer.
 */
-func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) error {
+func addFiles(w *zip.Writer, basePath, baseInZip string) error {
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
 		return err
@@ -62,20 +67,35 @@ func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) 
 			if errF != nil {
 				return errF
 			}
-			if file.Name() == MAIN_HANDLER {
-				varsDef := []byte(fmt.Sprintf(FUNCTION_LIST, strings.Join(functionList, "\",\"")))
-				dat = append(dat, varsDef...)
-			}
 			_, errW := f.Write(dat)
 			if errW != nil {
 				return errW
 			}
 		} else if file.IsDir() {
 			newBase := basePath + file.Name() + "/"
-			if errRec := addFiles(w, newBase, baseInZip+file.Name()+"/", functionList); errRec != nil {
+			if errRec := addFiles(w, newBase, baseInZip+file.Name()+"/"); errRec != nil {
 				return errRec
 			}
 		}
+	}
+	return nil
+}
+
+/*
+	Add config variables and constants
+	to zip archive.
+*/
+func addConfig(w *zip.Writer, seq sq.Sequence) error {
+	f, errF := w.Create(CONFIG_CONTROLLER_FILE)
+	if errF != nil {
+		return errF
+	}
+
+	dat := []byte(PACKAGE_DEFINITION + fmt.Sprintf(FUNCTION_LIST, strings.Join(seq.Functions, "\",\"")))
+
+	_, errW := f.Write(dat)
+	if errW != nil {
+		return errW
 	}
 	return nil
 }
