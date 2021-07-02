@@ -60,15 +60,27 @@ func check(c *gin.Context) {
 	and deploying it to cluster.
 */
 func create(c *gin.Context) {
-	name := c.Query("name")
-	seq := sequence.NewSequence(name, "openwhisk", "_", "hello-go")
+	name := c.PostForm("name")
+	framework := c.PostForm("framework")
+	namespace := c.PostForm("namespace")
+	functions := c.PostFormArray("functions")
+	seq, errS := sequence.NewSequence(name, framework, namespace, functions...)
+	if errS != nil {
+		c.String(http.StatusBadRequest, errS.Error())
+		return
+	}
+
 	wskConfig := &whisk.Config{
 		Host:      os.Getenv("API_HOST"),
 		Namespace: os.Getenv("NAMESPACE"),
 		AuthToken: os.Getenv("OPENWHISK_AUTH_TOKEN"),
 		Insecure:  true,
 	}
-	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
+	client, errCl := whisk.NewClient(http.DefaultClient, wskConfig)
+	if errCl != nil {
+		c.String(http.StatusInternalServerError, errCl.Error())
+		return
+	}
 
 	template := tpl.NewTemplate(seq, client)
 	if err := template.Create(); err != nil {
@@ -94,6 +106,10 @@ func create(c *gin.Context) {
 */
 func delete(c *gin.Context) {
 	sequence := c.Query("name")
+	if sequence == "" {
+		c.String(http.StatusBadRequest, "Please provide a sequence name for deletion.")
+		return
+	}
 
 	wskConfig := &whisk.Config{
 		Host:      os.Getenv("API_HOST"),
@@ -101,8 +117,16 @@ func delete(c *gin.Context) {
 		AuthToken: os.Getenv("OPENWHISK_AUTH_TOKEN"),
 		Insecure:  true,
 	}
-	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
-	actions, _, _ := client.Actions.List("", nil)
+	client, errCl := whisk.NewClient(http.DefaultClient, wskConfig)
+	if errCl != nil {
+		c.String(http.StatusInternalServerError, errCl.Error())
+		return
+	}
+	actions, _, errL := client.Actions.List("", nil)
+	if errL != nil {
+		c.String(http.StatusInternalServerError, errL.Error())
+		return
+	}
 
 	if func(a []whisk.Action, s string) bool {
 		for _, a := range a {
