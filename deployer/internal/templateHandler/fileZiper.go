@@ -13,7 +13,8 @@ const (
 	PACKAGE_DEFINITION string = `package main
 `
 	CONFIG_CONTROLLER_FILE string = "config.go"
-	FUNCTION_LIST          string = "var functionList = [...]string{\"%v\"}"
+	ZIP_ARCHIVE_PATH       string = "%v/%v.zip"
+	FUNCTION_SLICE         string = "var functionList = [...]string{\"%v\"}"
 )
 
 type fileZiperInterface interface {
@@ -26,7 +27,7 @@ type fileZiper struct {
 }
 
 func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
-	zipFile := fmt.Sprintf("%v/%v.zip", obj.dstFolder, seq.Name)
+	zipFile := fmt.Sprintf(ZIP_ARCHIVE_PATH, obj.dstFolder, seq.Name)
 	outFile, err := os.Create(zipFile)
 	if err != nil {
 		return "", fmt.Errorf("couldn't create zip archive")
@@ -91,7 +92,7 @@ func addConfig(w *zip.Writer, seq sq.Sequence) error {
 		return errF
 	}
 
-	dat := []byte(PACKAGE_DEFINITION + fmt.Sprintf(FUNCTION_LIST, strings.Join(seq.Functions, "\",\"")))
+	dat := []byte(PACKAGE_DEFINITION + fmt.Sprintf(FUNCTION_SLICE, strings.Join(seq.Functions, "\",\"")))
 
 	_, errW := f.Write(dat)
 	if errW != nil {
