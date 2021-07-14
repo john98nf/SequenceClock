@@ -4,9 +4,8 @@ import "fmt"
 
 type Sequence struct {
 	Name      string   `json:"name,omitempty"`
-	Functions []string `json:"functions,omitempty"`
 	Framework string   `json:"framework,omitempty"`
-	Namespace string   `json:"namespace,omitempty"`
+	Functions []string `json:"functions,omitempty"`
 }
 
 /*
@@ -14,16 +13,14 @@ type Sequence struct {
 */
 func NewSequence(
 	name,
-	framework,
-	namespace string,
+	framework string,
 	functions ...string) (*Sequence, error) {
-	if name == "" || framework == "" || namespace == "" || len(functions) == 0 {
+	if name == "" || framework == "" || len(functions) == 0 {
 		return nil, fmt.Errorf("can't create a sequence with empty fields")
 	}
 	return &Sequence{
 		Name:      name,
-		Functions: functions,
 		Framework: framework,
-		Namespace: namespace,
+		Functions: functions,
 	}, nil
 }

@@ -73,7 +73,7 @@ func (tpl *Template) Create() error {
 func (tpl *Template) Deploy() error {
 	newAction := whisk.Action{
 		Name:        tpl.Sequence.Name,
-		Namespace:   tpl.Sequence.Namespace,
+		Namespace:   os.Getenv("NAMESPACE"),
 		Annotations: whisk.KeyValueArr{whisk.KeyValue{Key: "provide-api-key", Value: "true"}},
 	}
 	newAction.Exec = new(whisk.Exec)
