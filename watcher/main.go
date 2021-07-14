@@ -34,12 +34,38 @@ func main() {
 
 	apiWatcher := router.Group("/api")
 	{
+		// GET Request http://localhost:8080/api/check
 		apiWatcher.GET("/check", check)
+		// PATCH Request http://localhost:8080/api/function/speedUp?name=x
+		apiWatcher.PATCH("/function/speedUp", speedUp)
+		// PATCH Request http://localhost:8080/api/function/slowDown?name=x
+		apiWatcher.PATCH("/function/slowDown", slowDown)
 	}
 
 	router.Run(":8080")
 }
 
+/*
+	Liveness & Readiness probe for watcher.
+*/
 func check(c *gin.Context) {
 	c.String(http.StatusOK, "Hello from watcher inside node %v!", hostIP)
+}
+
+/*
+	Provides more reqources to specified
+	function pod.
+*/
+func speedUp(c *gin.Context) {
+	functionName := c.Query("name")
+	c.String(http.StatusOK, "Watcher %v: SpeedUp request for function %v.", hostIP, functionName)
+}
+
+/*
+	Removes resources from sepcified
+	function pod.
+*/
+func slowDown(c *gin.Context) {
+	functionName := c.Query("name")
+	c.String(http.StatusOK, "Watcher %v: SpeedUp request for function %v.", hostIP, functionName)
 }

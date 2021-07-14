@@ -22,6 +22,7 @@ const (
 type TemplateInterface interface {
 	Create() error
 	Deploy() error
+	Delete() error
 }
 
 type Template struct {
@@ -48,6 +49,7 @@ func NewTemplate(sequence *sq.Sequence, client *whisk.Client) *Template {
 func (tpl *Template) Create() error {
 	execPath, errP := execPath()
 	if errP != nil {
+		log.Println(errP)
 		return fmt.Errorf("couldn't found executable path")
 	}
 	fziper := &fileZiper{
@@ -56,7 +58,8 @@ func (tpl *Template) Create() error {
 	}
 	zipFile, errZ := fziper.zipTemplate(*tpl.Sequence)
 	if errZ != nil {
-		return errZ
+		log.Println(errZ)
+		return fmt.Errorf("couldn't create zip archive")
 	}
 
 	tpl.Location = zipFile
@@ -70,7 +73,7 @@ func (tpl *Template) Create() error {
 func (tpl *Template) Deploy() error {
 	newAction := whisk.Action{
 		Name:        tpl.Sequence.Name,
-		Namespace:   tpl.Sequence.Namespace,
+		Namespace:   os.Getenv("NAMESPACE"),
 		Annotations: whisk.KeyValueArr{whisk.KeyValue{Key: "provide-api-key", Value: "true"}},
 	}
 	newAction.Exec = new(whisk.Exec)
@@ -86,6 +89,20 @@ func (tpl *Template) Deploy() error {
 	if _, _, errI := tpl.Client.Actions.Insert(&newAction, true); errI != nil {
 		log.Println(errI)
 		return fmt.Errorf("couldn't deploy new sequence")
+	}
+	return nil
+}
+
+/*
+	Deletes template.
+*/
+func (tpl *Template) Delete() error {
+	if tpl.Location == "" {
+		return fmt.Errorf("deletion of non existing template")
+	}
+	if err := os.Remove(tpl.Location); err != nil {
+		log.Println(err)
+		return fmt.Errorf("couldn't delete zip template")
 	}
 	return nil
 }

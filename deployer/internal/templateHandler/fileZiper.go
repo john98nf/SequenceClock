@@ -5,15 +5,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	sq "john98nf/SequenceClock/deployer/internal/sequence"
-	"log"
 	"os"
 	"strings"
 )
 
 const (
-	MAIN_HANDLER  string = "main.go"
-	FUNCTION_LIST string = "var functionList = [...]string{\"%v\"}"
+	PACKAGE_DEFINITION string = `package main
+`
+	CONFIG_CONTROLLER_FILE string = "config.go"
+	ZIP_ARCHIVE_PATH       string = "%v/%v.zip"
+	FUNCTION_SLICE         string = "var functionList = [...]string{\"%v\"}"
 )
+
+type fileZiperInterface interface {
+	zipTemplate(seq sq.Sequence) (string, error)
+}
 
 type fileZiper struct {
 	dstFolder  string
@@ -21,7 +27,7 @@ type fileZiper struct {
 }
 
 func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
-	zipFile := fmt.Sprintf("%v/%v.zip", obj.dstFolder, seq.Name)
+	zipFile := fmt.Sprintf(ZIP_ARCHIVE_PATH, obj.dstFolder, seq.Name)
 	outFile, err := os.Create(zipFile)
 	if err != nil {
 		return "", fmt.Errorf("couldn't create zip archive")
@@ -29,8 +35,11 @@ func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
 	defer outFile.Close()
 
 	w := zip.NewWriter(outFile)
-	if errZ := addFiles(w, obj.baseFolder, "", seq.Functions); errZ != nil {
+	if errZ := addFiles(w, obj.baseFolder, ""); errZ != nil {
 		return "", fmt.Errorf("couldn't add files to archive")
+	}
+	if errC := addConfig(w, seq); errC != nil {
+		return "", fmt.Errorf("couldn't add config file to archive")
 	}
 
 	if err = w.Close(); err != nil {
@@ -43,10 +52,9 @@ func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
 	Recursive function that reads the contents of basePath
 	and moves them to a zip folder, provided by w *zip.Writer.
 */
-func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) error {
+func addFiles(w *zip.Writer, basePath, baseInZip string) error {
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 
@@ -54,27 +62,41 @@ func addFiles(w *zip.Writer, basePath, baseInZip string, functionList []string) 
 		if !file.IsDir() {
 			dat, errR := ioutil.ReadFile(basePath + file.Name())
 			if errR != nil {
-				log.Println(errR)
 				return errR
 			}
 			f, errF := w.Create(baseInZip + file.Name())
 			if errF != nil {
-				log.Println(errF)
 				return errF
-			}
-			if file.Name() == MAIN_HANDLER {
-				varsDef := []byte(fmt.Sprintf(FUNCTION_LIST, strings.Join(functionList, "\",\"")))
-				dat = append(dat, varsDef...)
 			}
 			_, errW := f.Write(dat)
 			if errW != nil {
-				log.Println(errW)
 				return errW
 			}
 		} else if file.IsDir() {
 			newBase := basePath + file.Name() + "/"
-			return addFiles(w, newBase, baseInZip+file.Name()+"/", functionList)
+			if errRec := addFiles(w, newBase, baseInZip+file.Name()+"/"); errRec != nil {
+				return errRec
+			}
 		}
+	}
+	return nil
+}
+
+/*
+	Add config variables and constants
+	to zip archive.
+*/
+func addConfig(w *zip.Writer, seq sq.Sequence) error {
+	f, errF := w.Create(CONFIG_CONTROLLER_FILE)
+	if errF != nil {
+		return errF
+	}
+
+	dat := []byte(PACKAGE_DEFINITION + fmt.Sprintf(FUNCTION_SLICE, strings.Join(seq.Functions, "\",\"")))
+
+	_, errW := f.Write(dat)
+	if errW != nil {
+		return errW
 	}
 	return nil
 }

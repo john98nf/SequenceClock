@@ -1,10 +1,11 @@
 package sequence
 
+import "fmt"
+
 type Sequence struct {
-	Name      string   `json:"name"`
-	Functions []string `json:"functions"`
-	Framework string   `json:"framework"`
-	Namespace string   `json:"namespace"`
+	Name      string   `json:"name,omitempty"`
+	Framework string   `json:"framework,omitempty"`
+	Functions []string `json:"functions,omitempty"`
 }
 
 /*
@@ -12,14 +13,14 @@ type Sequence struct {
 */
 func NewSequence(
 	name,
-	framework,
-	namespace string,
-	functions ...string) *Sequence {
-	res := &Sequence{
-		Name:      name,
-		Functions: functions,
-		Framework: framework,
-		Namespace: namespace,
+	framework string,
+	functions ...string) (*Sequence, error) {
+	if name == "" || framework == "" || len(functions) == 0 {
+		return nil, fmt.Errorf("can't create a sequence with empty fields")
 	}
-	return res
+	return &Sequence{
+		Name:      name,
+		Framework: framework,
+		Functions: functions,
+	}, nil
 }
