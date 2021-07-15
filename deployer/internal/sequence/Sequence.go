@@ -3,9 +3,10 @@ package sequence
 import "fmt"
 
 type Sequence struct {
-	Name      string   `json:"name,omitempty"`
-	Framework string   `json:"framework,omitempty"`
-	Functions []string `json:"functions,omitempty"`
+	Name          string   `json:"name,omitempty"`
+	Framework     string   `json:"framework,omitempty"`
+	AlgorithmType string   `json:"algorithmType,omitempty"`
+	Functions     []string `json:"functions,omitempty"`
 }
 
 /*
@@ -13,14 +14,16 @@ type Sequence struct {
 */
 func NewSequence(
 	name,
-	framework string,
+	framework,
+	algorithmType string,
 	functions ...string) (*Sequence, error) {
-	if name == "" || framework == "" || len(functions) == 0 {
+	if name == "" || algorithmType == "" || framework == "" || len(functions) == 0 {
 		return nil, fmt.Errorf("can't create a sequence with empty fields")
 	}
 	return &Sequence{
-		Name:      name,
-		Framework: framework,
-		Functions: functions,
+		Name:          name,
+		Framework:     framework,
+		AlgorithmType: algorithmType,
+		Functions:     functions,
 	}, nil
 }

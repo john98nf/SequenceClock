@@ -34,6 +34,16 @@ import (
 	"github.com/apache/openwhisk-client-go/whisk"
 )
 
+type controller (func(map[string]interface{}) map[string]interface{})
+
+var (
+	client         *whisk.Client
+	controllerType = map[string]controller{
+		//"greedy": greedyControl,
+		"dummy": dummyControl,
+	}
+)
+
 func Main(obj map[string]interface{}) map[string]interface{} {
 	wskConfig := &whisk.Config{
 		Host:      os.Getenv("__OW_API_HOST"),
@@ -41,14 +51,16 @@ func Main(obj map[string]interface{}) map[string]interface{} {
 		AuthToken: os.Getenv("__OW_API_KEY"),
 		Insecure:  true,
 	}
-	client, _ := whisk.NewClient(http.DefaultClient, wskConfig)
+	client, _ = whisk.NewClient(http.DefaultClient, wskConfig)
+	return controllerType[ALGORITHM_TYPE](obj)
+}
 
+func dummyControl(obj map[string]interface{}) map[string]interface{} {
 	log.Printf("Invoking function-%v %v\n", 0, functionList[0])
 	aRes, _, _ := client.Actions.Invoke(functionList[0], obj, true, true)
 	for i, f := range functionList[1:] {
 		log.Printf("Invoking function-%v %v\n", i+1, f)
 		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
 	}
-
 	return aRes
 }

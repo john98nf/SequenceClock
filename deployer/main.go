@@ -62,8 +62,9 @@ func check(c *gin.Context) {
 func create(c *gin.Context) {
 	name := c.PostForm("name")
 	framework := c.PostForm("framework")
+	algorithm := c.PostForm("algorithm")
 	functions := c.PostFormArray("functions")
-	seq, errS := sequence.NewSequence(name, framework, functions...)
+	seq, errS := sequence.NewSequence(name, framework, algorithm, functions...)
 	if errS != nil {
 		c.String(http.StatusBadRequest, errS.Error())
 		return
