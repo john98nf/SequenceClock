@@ -43,8 +43,8 @@ spec:
       {{ end }}
       containers:
       - name: "{{ .Release.Name }}-{{ .Chart.Name }}"
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image: "{{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.watcher.image.pullPolicy }}
         ports:
           - name: http
             containerPort: 8080

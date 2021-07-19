@@ -21,20 +21,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.appname }}
+  name: "{{ .Release.Name }}-{{ .Chart.Name }}-sprm"
   labels:
-    app: {{ .Values.appname }}
+    app: "{{ .Chart.Name }}-supreme"
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      app: {{ .Values.appname }}
+      app: "{{ .Chart.Name }}-supreme"
   template:
     metadata:
       labels:
-        app: {{ .Values.appname }}
+        app: "{{ .Chart.Name }}-supreme"
     spec:
       tolerations:
         - key: "node-role.kubernetes.io/master"
@@ -48,32 +48,13 @@ spec:
                 - key: "node-role.kubernetes.io/master"
                   operator: "Exists"
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          volumeMounts:
-          - name: ctrl-tpl
-            mountPath: "/tmp"
+        - name: "{{ .Chart.Name }}-supreme"
+          image: "{{ .Values.watcherSupreme.image.repository }}:{{ .Values.watcherSupreme.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.watcherSupreme.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-          env:
-          - name: API_HOST
-            valueFrom:
-              configMapKeyRef:
-                name: {{ .Release.Name }}-wsk-info-configmap
-                key: apihost
-          - name: NAMESPACE
-            valueFrom:
-              configMapKeyRef:
-                name: {{ .Release.Name }}-wsk-info-configmap
-                key: namespace
-          - name: OPENWHISK_AUTH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Release.Name }}-openwhisk-secret
-                key: authToken
           livenessProbe:
             httpGet:
               path: /api/check
@@ -82,7 +63,3 @@ spec:
             httpGet:
               path: /api/check
               port: http
-      volumes:
-        - name: ctrl-tpl
-          persistentVolumeClaim:
-            claimName: ctrl-tpl-claim
