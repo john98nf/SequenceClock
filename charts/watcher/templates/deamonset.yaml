@@ -35,10 +35,12 @@ spec:
     spec:
       # Include this part, if scheduling to master
       # node is desired.
-      # tolerations:
-      # - key: node-role.kubernetes.io/master
-      #   operator: Exists
-      #   effect: NoSchedule
+      {{ if eq .Values.cluster.ignoreMasterTaint true  }}
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      {{ end }}
       containers:
       - name: "{{ .Release.Name }}-{{ .Chart.Name }}"
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
