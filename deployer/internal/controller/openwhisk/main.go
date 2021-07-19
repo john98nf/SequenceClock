@@ -56,10 +56,9 @@ func Main(obj map[string]interface{}) map[string]interface{} {
 }
 
 func dummyControl(obj map[string]interface{}) map[string]interface{} {
-	log.Printf("Invoking function-%v %v\n", 0, functionList[0])
-	aRes, _, _ := client.Actions.Invoke(functionList[0], obj, true, true)
-	for i, f := range functionList[1:] {
-		log.Printf("Invoking function-%v %v\n", i+1, f)
+	aRes := obj
+	for i, f := range functionList {
+		log.Printf("Invoking function-%v %v\n", i, f)
 		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
 	}
 	return aRes
