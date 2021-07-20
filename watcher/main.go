@@ -24,10 +24,14 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 )
 
-var hostIP string = os.Getenv("HOST_IP")
+var (
+	hostIP string = os.Getenv("HOST_IP")
+	cli    *client.Client
+)
 
 func main() {
 	router := gin.Default()
@@ -36,11 +40,17 @@ func main() {
 	{
 		// GET Request http://localhost:8080/api/check
 		apiWatcher.GET("/check", check)
-		// PATCH Request http://localhost:8080/api/function/speedUp?name=x
-		apiWatcher.PATCH("/function/speedUp", speedUp)
-		// PATCH Request http://localhost:8080/api/function/slowDown?name=x
-		apiWatcher.PATCH("/function/slowDown", slowDown)
+		// PATCH Request http://localhost:8080/api/function/:name/speedUp
+		apiWatcher.PATCH("/function/:name/speedUp", speedUp)
+		// PATCH Request http://localhost:8080/api/function/:name/slowDown?name=x
+		apiWatcher.PATCH("/function/:name/slowDown", slowDown)
 	}
+
+	cliLocal, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		panic(err)
+	}
+	cli = cliLocal
 
 	router.Run(":8080")
 }
@@ -57,7 +67,7 @@ func check(c *gin.Context) {
 	function pod.
 */
 func speedUp(c *gin.Context) {
-	functionName := c.Query("name")
+	functionName := c.Param("name")
 	c.String(http.StatusOK, "Watcher %v: SpeedUp request for function %v.", hostIP, functionName)
 }
 
@@ -66,6 +76,22 @@ func speedUp(c *gin.Context) {
 	function pod.
 */
 func slowDown(c *gin.Context) {
-	functionName := c.Query("name")
+	functionName := c.Param("name")
 	c.String(http.StatusOK, "Watcher %v: SpeedUp request for function %v.", hostIP, functionName)
 }
+
+// func test(c *gin.Context) {
+
+// 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+// 	if err != nil {
+// 		c.String(http.StatusInternalServerError, err.Error())
+// 		return
+// 	}
+
+// 	data := make(gin.H)
+// 	for _, c := range containers {
+// 		data[c.ID[:10]] = c.Names
+// 	}
+// 	c.JSON(200, data)
+
+// }
