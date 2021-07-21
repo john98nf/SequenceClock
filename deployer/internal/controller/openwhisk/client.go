@@ -38,7 +38,7 @@ type WatcherClient struct {
 
 func NewWatcherClient(host string) *WatcherClient {
 	return &WatcherClient{
-		endpoint: "http://" + host + ":31757/api",
+		endpoint: "http://" + host + ":32042/api",
 	}
 }
 

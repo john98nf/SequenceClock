@@ -14,7 +14,10 @@ const (
 `
 	CONFIG_CONTROLLER_FILE string = "config.go"
 	ZIP_ARCHIVE_PATH       string = "%v/%v.zip"
-	ALGORITHM_TYPE         string = `const ALGORITHM_TYPE string = "%v"
+	CONSTANTS              string = `const (
+		ALGORITHM_TYPE string = "%v"
+		KUBE_MAIN_IP = "%v"
+)
 `
 	FUNCTION_SLICE string = "var functionList = [...]string{\"%v\"}"
 )
@@ -94,7 +97,7 @@ func addConfig(w *zip.Writer, seq sq.Sequence) error {
 		return errF
 	}
 
-	dat := []byte(PACKAGE_DEFINITION + fmt.Sprintf(ALGORITHM_TYPE, seq.AlgorithmType) + fmt.Sprintf(FUNCTION_SLICE, strings.Join(seq.Functions, "\",\"")))
+	dat := []byte(PACKAGE_DEFINITION + fmt.Sprintf(CONSTANTS, seq.AlgorithmType, os.Getenv("HOST_IP")) + fmt.Sprintf(FUNCTION_SLICE, strings.Join(seq.Functions, "\",\"")))
 
 	_, errW := f.Write(dat)
 	if errW != nil {

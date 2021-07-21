@@ -89,7 +89,7 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 
 	profiledExecutionTime := distributeLatency(TARGET_LATENCY, len(functionList))
 
-	watcherClient := NewWatcherClient("192.168.1.243")
+	watcherClient := NewWatcherClient(KUBE_MAIN_IP)
 	aRes := obj
 	for i, f := range functionList {
 		if slack > 0 {

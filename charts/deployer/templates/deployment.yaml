@@ -74,6 +74,10 @@ spec:
               secretKeyRef:
                 name: {{ .Release.Name }}-openwhisk-secret
                 key: authToken
+          - name: HOST_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
           livenessProbe:
             httpGet:
               path: /api/check
