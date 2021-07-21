@@ -37,7 +37,7 @@ import (
 
 type controller (func(map[string]interface{}) map[string]interface{})
 
-const TARGET_LATENCY time.Duration = 50000
+const TARGET_LATENCY time.Duration = 500000000
 
 var (
 	client         *whisk.Client
@@ -89,32 +89,31 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 
 	profiledExecutionTime := distributeLatency(TARGET_LATENCY, len(functionList))
 
-	watcherClient := NewWatcherClient()
+	watcherClient := NewWatcherClient("192.168.1.243")
 	aRes := obj
-	n := len(functionList)
 	for i, f := range functionList {
+		if slack > 0 {
+			// TO DO: Actual slow down call to watcher supreme
+			log.Printf("Positive slack %v\n", slack)
+			if err := watcherClient.FunctionInvokationNotice(functionList[i]); err != nil {
+				log.Printf("Error from watcher client: %v\n", err.Error())
+			}
+		} else if slack < 0 {
+			// TO DO: Actual speed up call to watcher supreme
+			log.Printf("Negative slack %v\n", slack)
+			if err := watcherClient.FunctionInvokationNotice(functionList[i]); err != nil {
+				log.Printf("Error from watcher client: %v\n", err.Error())
+			}
+		}
+
 		log.Printf("Invoking function-%v %v\n", i, f)
+
 		tStart = time.Now()
 		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
 		tEnd = time.Now()
 		elapsed = tEnd.Sub(tStart)
+		log.Printf("Elapsed time: %v\n", elapsed)
 		slack += profiledExecutionTime[i] - elapsed
-
-		if i < n-1 {
-			if slack > 0 {
-				// TO DO: Actual slow down call to watcher supreme
-				log.Printf("Positive slack %v\n", slack)
-				if err := watcherClient.FunctionInvokationNotice(functionList[i+1]); err != nil {
-					log.Printf("Error from watcher client: %v\n", err.Error())
-				}
-			} else if slack < 0 {
-				// TO DO: Actual speed up call to watcher supreme
-				log.Printf("Negative slack %v\n", slack)
-				if err := watcherClient.FunctionInvokationNotice(functionList[i+1]); err != nil {
-					log.Printf("Error from watcher client: %v\n", err.Error())
-				}
-			}
-		}
 	}
 	return aRes
 }

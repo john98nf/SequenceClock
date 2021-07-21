@@ -36,9 +36,9 @@ type WatcherClient struct {
 	endpoint string `json:endpoint,omitempty`
 }
 
-func NewWatcherClient() *WatcherClient {
+func NewWatcherClient(host string) *WatcherClient {
 	return &WatcherClient{
-		endpoint: "scw-watcher-sprm-svc:8080/api",
+		endpoint: "http://" + host + ":31757/api",
 	}
 }
 
