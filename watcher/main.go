@@ -82,29 +82,20 @@ func speedUp(c *gin.Context) {
 		c.String(http.StatusBadRequest, "No function name was provided")
 		return
 	}
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	container, err := searchFunctionContainer(fName, "user-action")
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
+	} else if container == nil {
+		c.JSON(http.StatusNotFound, gin.H{})
+		return
 	}
-	exp := fmt.Sprintf(REG_EXP, fName)
-	for _, cnt := range containers {
-		if l, ok := cnt.Labels["io.kubernetes.container.name"]; ok && l == "user-action" {
-			if matched, err := regexp.MatchString(exp, cnt.Labels["io.kubernetes.pod.name"]); matched {
-				// TO DO: actual resource allocation for docker container
-				c.JSON(http.StatusOK, gin.H{
-					"function": fName,
-					"message":  "Docker container found",
-					"node":     hostIP,
-				})
-				return
-			} else if err != nil {
-				c.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-		}
-	}
-	c.JSON(http.StatusNotFound, gin.H{})
+	// TO DO: actual resource allocation for docker container
+	c.JSON(http.StatusOK, gin.H{
+		"function": fName,
+		"message":  "Docker container found",
+		"node":     hostIP,
+	})
 }
 
 /*
@@ -117,29 +108,20 @@ func slowDown(c *gin.Context) {
 		c.String(http.StatusBadRequest, "No function name was provided")
 		return
 	}
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	container, err := searchFunctionContainer(fName, "user-action")
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
+	} else if container == nil {
+		c.JSON(http.StatusNotFound, gin.H{})
+		return
 	}
-	exp := fmt.Sprintf(REG_EXP, fName)
-	for _, cnt := range containers {
-		if l, ok := cnt.Labels["io.kubernetes.container.name"]; ok && l == "user-action" {
-			if matched, err := regexp.MatchString(exp, cnt.Labels["io.kubernetes.pod.name"]); matched {
-				// TO DO: actual resource allocation for docker container
-				c.JSON(http.StatusOK, gin.H{
-					"function": fName,
-					"message":  "Docker container found",
-					"node":     hostIP,
-				})
-				return
-			} else if err != nil {
-				c.String(http.StatusInternalServerError, err.Error())
-				return
-			}
-		}
-	}
-	c.JSON(http.StatusNotFound, gin.H{})
+	// TO DO: actual resource allocation for docker container
+	c.JSON(http.StatusOK, gin.H{
+		"function": fName,
+		"message":  "Docker container found",
+		"node":     hostIP,
+	})
 }
 
 /*
@@ -153,36 +135,48 @@ func getContainer(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Not supported pod type.")
 		return
 	}
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	cnt, err := searchFunctionContainer(fName, podType)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
+	} else if cnt == nil {
+		c.JSON(http.StatusNotFound, gin.H{})
+		return
 	}
+	c.JSON(http.StatusOK, gin.H{
+		"ID":          cnt.ID[:10],
+		"Image":       cnt.Image,
+		"Command":     cnt.Command,
+		"Created":     cnt.Created,
+		"Porst":       cnt.Ports,
+		"SizeRw":      cnt.SizeRw,
+		"SizeRootfS":  cnt.SizeRootFs,
+		"Labels":      cnt.Labels,
+		"State":       cnt.State,
+		"Statue":      cnt.Status,
+		"NetworkMode": cnt.HostConfig.NetworkMode,
+		"Mount":       cnt.Mounts,
+	})
+}
 
-	exp := fmt.Sprintf(REG_EXP, fName)
+/*
+	Helper function for searching docker runtime
+	for an openwhisk action container.
+*/
+func searchFunctionContainer(name, podType string) (*types.Container, error) {
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	exp := fmt.Sprintf(REG_EXP, name)
 	for _, cnt := range containers {
 		if l, ok := cnt.Labels["io.kubernetes.container.name"]; ok && l == podType {
 			if matched, err := regexp.MatchString(exp, cnt.Labels["io.kubernetes.pod.name"]); matched {
-				c.JSON(http.StatusOK, gin.H{
-					"ID":          cnt.ID[:10],
-					"Image":       cnt.Image,
-					"Command":     cnt.Command,
-					"Created":     cnt.Created,
-					"Porst":       cnt.Ports,
-					"SizeRw":      cnt.SizeRw,
-					"SizeRootfS":  cnt.SizeRootFs,
-					"Labels":      cnt.Labels,
-					"State":       cnt.State,
-					"Statue":      cnt.Status,
-					"NetworkMode": cnt.HostConfig.NetworkMode,
-					"Mount":       cnt.Mounts,
-				})
-				return
+				return &cnt, nil
 			} else if err != nil {
-				c.String(http.StatusInternalServerError, err.Error())
-				return
+				return nil, err
 			}
 		}
 	}
-	c.JSON(http.StatusNotFound, gin.H{})
+	return nil, nil
 }
