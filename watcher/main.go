@@ -33,8 +33,7 @@ import (
 )
 
 const (
-	REG_EXP1 string = `(^\/k8s_user-action_wskowdev-invoker-00-[0-9][0-9]-guest-%v_openwhisk_)`
-	REG_EXP2 string = `(^\/k8s_POD_wskowdev-invoker-00-[0-9][0-9]-guest-%v_openwhisk_)`
+	REG_EXP string = `^wskowdev-invoker-00-[0-9][0-9]-guest-%v`
 )
 
 var (
@@ -49,12 +48,12 @@ func main() {
 	{
 		// GET Request http://localhost:8080/api/check
 		apiWatcher.GET("/check", check)
-		// GET Request http://localhost:8080/api/function/:name
+		// GET Request http://localhost:8080/api/function
 		apiWatcher.GET("/function/:name", getContainer)
-		// PATCH Request http://localhost:8080/api/function/:name/speedUp
-		apiWatcher.PATCH("/function/:name/speedUp", speedUp)
-		// PATCH Request http://localhost:8080/api/function/:name/slowDown
-		apiWatcher.PATCH("/function/:name/slowDown", slowDown)
+		// POST Request http://localhost:8080/api/function/speedUp
+		apiWatcher.POST("/function/speedUp", speedUp)
+		// POST Request http://localhost:8080/api/function/slowDown
+		apiWatcher.POST("/function/slowDown", slowDown)
 	}
 
 	cliLocal, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -78,8 +77,34 @@ func check(c *gin.Context) {
 	function pod.
 */
 func speedUp(c *gin.Context) {
-	functionName := c.Param("name")
-	c.String(http.StatusOK, "Watcher %v: SpeedUp request for function %v.", hostIP, functionName)
+	fName := c.PostForm("name")
+	if fName == "" {
+		c.String(http.StatusBadRequest, "No function name was provided")
+		return
+	}
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	exp := fmt.Sprintf(REG_EXP, fName)
+	for _, cnt := range containers {
+		if l, ok := cnt.Labels["io.kubernetes.container.name"]; ok && l == "user-action" {
+			if matched, err := regexp.MatchString(exp, cnt.Labels["io.kubernetes.pod.name"]); matched {
+				// TO DO: actual resource allocation for docker container
+				c.JSON(http.StatusOK, gin.H{
+					"function": fName,
+					"message":  "Docker container found",
+					"node":     hostIP,
+				})
+				return
+			} else if err != nil {
+				c.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+	}
+	c.JSON(http.StatusNotFound, gin.H{})
 }
 
 /*
@@ -87,55 +112,77 @@ func speedUp(c *gin.Context) {
 	function pod.
 */
 func slowDown(c *gin.Context) {
-	functionName := c.Param("name")
-	c.String(http.StatusOK, "Watcher %v: SpeedUp request for function %v.", hostIP, functionName)
+	fName := c.PostForm("name")
+	if fName == "" {
+		c.String(http.StatusBadRequest, "No function name was provided")
+		return
+	}
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	exp := fmt.Sprintf(REG_EXP, fName)
+	for _, cnt := range containers {
+		if l, ok := cnt.Labels["io.kubernetes.container.name"]; ok && l == "user-action" {
+			if matched, err := regexp.MatchString(exp, cnt.Labels["io.kubernetes.pod.name"]); matched {
+				// TO DO: actual resource allocation for docker container
+				c.JSON(http.StatusOK, gin.H{
+					"function": fName,
+					"message":  "Docker container found",
+					"node":     hostIP,
+				})
+				return
+			} else if err != nil {
+				c.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+	}
+	c.JSON(http.StatusNotFound, gin.H{})
 }
 
 /*
 	Get information for function related
-	container.
+	container. Test oriented api call.
 */
 func getContainer(c *gin.Context) {
-	f := c.Param("name")
-	podType := c.DefaultQuery("type", "running")
+	fName := c.Param("name")
+	podType := c.DefaultQuery("type", "user-action")
+	if podType != "user-action" && podType != "POD" {
+		c.String(http.StatusBadRequest, "Not supported pod type.")
+		return
+	}
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	data := make(gin.H)
-	var exp string
-	if podType == "running" {
-		exp = fmt.Sprintf(REG_EXP1, f)
-	} else if podType == "paused" {
-		exp = fmt.Sprintf(REG_EXP2, f)
-	} else {
-		c.String(http.StatusBadRequest, "Not supported pod type.")
-		return
-	}
-
+	exp := fmt.Sprintf(REG_EXP, fName)
 	for _, cnt := range containers {
-		if matched, err := regexp.MatchString(exp, cnt.Names[0]); matched {
-			data["ID"] = cnt.ID[:10]
-			data["Names"] = cnt.Names
-			data["Image"] = cnt.Image
-			data["Command"] = cnt.Command
-			data["Created"] = cnt.Created
-			data["Ports"] = cnt.Ports
-			data["SizeRw"] = cnt.SizeRw
-			data["SizeRootFs"] = cnt.SizeRootFs
-			data["Labels"] = cnt.Labels
-			data["State"] = cnt.State
-			data["Status"] = cnt.Status
-			data["NetworkMode"] = cnt.HostConfig.NetworkMode
-			// Ignored NetworkSettings
-			data["Mount"] = cnt.Mounts
-		} else if err != nil {
-			c.String(http.StatusInternalServerError, err.Error())
-			return
+		if l, ok := cnt.Labels["io.kubernetes.container.name"]; ok && l == podType {
+			if matched, err := regexp.MatchString(exp, cnt.Labels["io.kubernetes.pod.name"]); matched {
+				c.JSON(http.StatusOK, gin.H{
+					"ID":          cnt.ID[:10],
+					"Image":       cnt.Image,
+					"Command":     cnt.Command,
+					"Created":     cnt.Created,
+					"Porst":       cnt.Ports,
+					"SizeRw":      cnt.SizeRw,
+					"SizeRootfS":  cnt.SizeRootFs,
+					"Labels":      cnt.Labels,
+					"State":       cnt.State,
+					"Statue":      cnt.Status,
+					"NetworkMode": cnt.HostConfig.NetworkMode,
+					"Mount":       cnt.Mounts,
+				})
+				return
+			} else if err != nil {
+				c.String(http.StatusInternalServerError, err.Error())
+				return
+			}
 		}
 	}
-	c.JSON(200, data)
-
+	c.JSON(http.StatusNotFound, gin.H{})
 }
