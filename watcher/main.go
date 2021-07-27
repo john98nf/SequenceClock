@@ -28,12 +28,27 @@ import (
 	"regexp"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 )
 
 const (
-	REG_EXP string = `^wskowdev-invoker-00-[0-9][0-9]-guest-%v`
+	REG_EXP                      string = `^wskowdev-invoker-00-[0-9][0-9]-guest-%v`
+	BLKIO_WEIGHT_DEFAULT         uint16 = 0
+	CPUSET_CPUS_DEFAULT          string = ""
+	CPUSET_MEMS_DEFAULT          string = ""
+	CPU_SHARES_DEFAULT           int64  = 0 // Openwhisk default 2
+	CPU_PERIOD_DEFAULT           int64  = 0 // Openwhisk default 100000
+	CPU_QUOTA_DEFAULT            int64  = 0
+	CPU_REALTIME_PERIOD_DEFAULT  int64  = 0
+	CPU_REALTIME_RUNTIME_DEFAULT int64  = 0
+	MEMORY_DEFAULT               int64  = 0 // Openwhisk default 268435456
+	MEMORY_RESERVATION_DEFAULT   int64  = 0
+	MEMORY_SWAP_DEFAULT          int64  = 0 // Openwhisk default -1
+	KERNEL_MEMORY_DEFAULT        int64  = 0
+	NANO_CPUS_DEFAULT            int64  = 0
+	RESTART_POLICY_DEFAULT       string = "" // Openwhisk default {"Name": "no",MaximumRetryCount: 0}
 )
 
 var (
@@ -78,6 +93,8 @@ func check(c *gin.Context) {
 */
 func speedUp(c *gin.Context) {
 	fName := c.PostForm("name")
+	// slack := c.PostForm("slack")
+	// expectedElapsedTime := c.PostForm("elapsedTime")
 	if fName == "" {
 		c.String(http.StatusBadRequest, "No function name was provided")
 		return
@@ -90,10 +107,14 @@ func speedUp(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{})
 		return
 	}
-	// TO DO: actual resource allocation for docker container
+	// TO DO: Introduce not manual cpu-quota change
+	if err := updateContainerCPUQuota(container.ID, 150000); err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"function": fName,
-		"message":  "Docker container found",
+		"message":  "Docker container updated",
 		"node":     hostIP,
 	})
 }
@@ -116,10 +137,14 @@ func slowDown(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{})
 		return
 	}
-	// TO DO: actual resource allocation for docker container
+	// TO DO: Introduce not manual cpu-quota change
+	if err := updateContainerCPUQuota(container.ID, 50000); err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"function": fName,
-		"message":  "Docker container found",
+		"message":  "Docker container updated",
 		"node":     hostIP,
 	})
 }
@@ -148,12 +173,12 @@ func getContainer(c *gin.Context) {
 		"Image":       cnt.Image,
 		"Command":     cnt.Command,
 		"Created":     cnt.Created,
-		"Porst":       cnt.Ports,
+		"Ports":       cnt.Ports,
 		"SizeRw":      cnt.SizeRw,
 		"SizeRootfS":  cnt.SizeRootFs,
 		"Labels":      cnt.Labels,
 		"State":       cnt.State,
-		"Statue":      cnt.Status,
+		"Status":      cnt.Status,
 		"NetworkMode": cnt.HostConfig.NetworkMode,
 		"Mount":       cnt.Mounts,
 	})
@@ -179,4 +204,32 @@ func searchFunctionContainer(name, podType string) (*types.Container, error) {
 		}
 	}
 	return nil, nil
+}
+
+func updateContainerCPUQuota(containerID string, cpuQuota int64) error {
+	updateConfig := containertypes.UpdateConfig{
+		Resources: containertypes.Resources{
+			BlkioWeight:        BLKIO_WEIGHT_DEFAULT,
+			CpusetCpus:         CPUSET_CPUS_DEFAULT,
+			CpusetMems:         CPUSET_MEMS_DEFAULT,
+			CPUShares:          CPU_SHARES_DEFAULT,
+			Memory:             MEMORY_DEFAULT,
+			MemoryReservation:  MEMORY_RESERVATION_DEFAULT,
+			MemorySwap:         MEMORY_SWAP_DEFAULT,
+			KernelMemory:       KERNEL_MEMORY_DEFAULT,
+			CPUPeriod:          CPU_PERIOD_DEFAULT,
+			CPUQuota:           cpuQuota,
+			CPURealtimePeriod:  CPU_REALTIME_PERIOD_DEFAULT,
+			CPURealtimeRuntime: CPU_REALTIME_RUNTIME_DEFAULT,
+			NanoCPUs:           NANO_CPUS_DEFAULT,
+		},
+		RestartPolicy: containertypes.RestartPolicy{
+			Name:              "no",
+			MaximumRetryCount: 0,
+		},
+	}
+	if _, err := cli.ContainerUpdate(context.Background(), containerID, updateConfig); err != nil {
+		return err
+	}
+	return nil
 }
