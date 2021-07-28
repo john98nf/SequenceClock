@@ -113,7 +113,7 @@ func requestHandler(c *gin.Context) {
 	case wrq.SlowDownRequest:
 		reqCPUQuota = int64(50000)
 	case wrq.ResetRequest:
-		reqCPUQuota = CPU_QUOTA_DEFAULT
+		reqCPUQuota = int64(-1)
 	}
 	if err := updateContainerCPUQuota(container.ID, reqCPUQuota); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
