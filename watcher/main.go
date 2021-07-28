@@ -27,6 +27,8 @@ import (
 	"os"
 	"regexp"
 
+	wrq "john98nf/SequenceClock/watcher/pkg/request"
+
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -63,12 +65,10 @@ func main() {
 	{
 		// GET Request http://localhost:8080/api/check
 		apiWatcher.GET("/check", check)
-		// GET Request http://localhost:8080/api/function
+		// GET Request http://localhost:8080/api/function/{name}
 		apiWatcher.GET("/function/:name", getContainer)
 		// POST Request http://localhost:8080/api/function/speedUp
-		apiWatcher.POST("/function/speedUp", speedUp)
-		// POST Request http://localhost:8080/api/function/slowDown
-		apiWatcher.POST("/function/slowDown", slowDown)
+		apiWatcher.POST("/function/requestResources", requestHandler)
 	}
 
 	cliLocal, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -88,62 +88,39 @@ func check(c *gin.Context) {
 }
 
 /*
-	Provides more reqources to specified
-	function pod.
+	Provides or Removes resources from openwhisk function
+	docker container resources.
 */
-func speedUp(c *gin.Context) {
-	fName := c.PostForm("name")
-	// slack := c.PostForm("slack")
-	// expectedElapsedTime := c.PostForm("elapsedTime")
-	if fName == "" {
-		c.String(http.StatusBadRequest, "No function name was provided")
+func requestHandler(c *gin.Context) {
+	var req wrq.Request
+	if err := c.ShouldBind(&req); err != nil {
+		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	container, err := searchFunctionContainer(fName, "user-action")
+	container, err := searchFunctionContainer(req.Function, "user-action")
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	} else if container == nil {
-		c.JSON(http.StatusNotFound, gin.H{})
+		c.String(http.StatusNotFound, "No related docker container was found")
 		return
 	}
 	// TO DO: Introduce not manual cpu-quota change
-	if err := updateContainerCPUQuota(container.ID, 150000); err != nil {
+	var reqCPUQuota int64
+	switch req.Type {
+	case wrq.SpeedUpRequest:
+		reqCPUQuota = int64(150000)
+	case wrq.SlowDownRequest:
+		reqCPUQuota = int64(50000)
+	case wrq.ResetRequest:
+		reqCPUQuota = CPU_QUOTA_DEFAULT
+	}
+	if err := updateContainerCPUQuota(container.ID, reqCPUQuota); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"function": fName,
-		"message":  "Docker container updated",
-		"node":     hostIP,
-	})
-}
-
-/*
-	Removes resources from sepcified
-	function pod.
-*/
-func slowDown(c *gin.Context) {
-	fName := c.PostForm("name")
-	if fName == "" {
-		c.String(http.StatusBadRequest, "No function name was provided")
-		return
-	}
-	container, err := searchFunctionContainer(fName, "user-action")
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	} else if container == nil {
-		c.JSON(http.StatusNotFound, gin.H{})
-		return
-	}
-	// TO DO: Introduce not manual cpu-quota change
-	if err := updateContainerCPUQuota(container.ID, 50000); err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"function": fName,
+		"function": req.Function,
 		"message":  "Docker container updated",
 		"node":     hostIP,
 	})
@@ -151,10 +128,10 @@ func slowDown(c *gin.Context) {
 
 /*
 	Get information for function related
-	container. Test oriented api call.
+	container. Development oriented api call.
 */
 func getContainer(c *gin.Context) {
-	fName := c.Param("name")
+	fName := c.Param("Function")
 	podType := c.DefaultQuery("type", "user-action")
 	if podType != "user-action" && podType != "POD" {
 		c.String(http.StatusBadRequest, "Not supported pod type.")
@@ -206,6 +183,10 @@ func searchFunctionContainer(name, podType string) (*types.Container, error) {
 	return nil, nil
 }
 
+/*
+	Helper function for updating CPU quotas
+	of specified docker container.
+*/
 func updateContainerCPUQuota(containerID string, cpuQuota int64) error {
 	updateConfig := containertypes.UpdateConfig{
 		Resources: containertypes.Resources{
