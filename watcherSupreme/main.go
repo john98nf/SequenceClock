@@ -21,17 +21,18 @@
 package main
 
 import (
+	"log"
 	"net/http"
+
+	wrq "john8nf/SequenceClock/watcher/pkg/request"
+	wrc "john8nf/SequenceClock/watcherSupreme/pkg/watcherClient"
 
 	"github.com/gin-gonic/gin"
 )
 
 var (
-	nodes []string = []string{
-		"192.168.1.244",
-		"192.168.1.245",
-		"192.168.1.246",
-	}
+	clients []*wrc.WatcherClient
+	//requests map[string]*wrq.Request
 )
 
 func main() {
@@ -41,10 +42,12 @@ func main() {
 	{
 		// GET Request http://localhost:8080/api/check
 		apiWatcher.GET("/check", check)
-		// Get Request http://localhost:8080/api/function/{name}
-		apiWatcher.GET("/function/:name", getFuction)
+		// POST Request http://localhost:8080/api/function/requestResources
+		apiWatcher.POST("/function/requestResources", requestHandler)
 	}
 
+	//requests = make(map[string]*wrq.Request)
+	clients = connectWatchers()
 	router.Run(":8080")
 }
 
@@ -56,10 +59,58 @@ func check(c *gin.Context) {
 }
 
 /*
-	Checks local docker runtime for the specified docker
-	container.
+	SpeedUp/SlowDown Request for certain function.
+	Watcher supreme wil inform watchers, which will
+	search their docker runtime for the actual docker container.
 */
-func getFuction(c *gin.Context) {
-	functionName := c.Param("name")
-	c.String(http.StatusOK, "Watcher-Supreme: Get request for function %v.", functionName)
+func requestHandler(c *gin.Context) {
+	var req wrq.Request
+	if err := c.ShouldBind(&req); err != nil {
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+	// if oldReq,ok := requests[req.Function]; ok {
+	// 	// TODO: Find more clever way for resolving conflicts
+	// 	if oldReq.Type == req.Type || req.Type == wrq.SlowDownRequest {
+	// 		c.String(http.StatusOK, "Request ignored")
+	// 		return
+	// 	}
+	// }
+	go requestResourceAllocationFromWatchers(&req)
+	//requests[req.Function] = &req
+
+	c.String(http.StatusOK, "Speed up request is been processed")
+}
+
+/*
+	Iterate through all nodes.
+	Request for resource allocation in every runtime
+	that the certain docker container is found.
+*/
+func requestResourceAllocationFromWatchers(req *wrq.Request) {
+	for found := false; found; {
+		for _, c := range clients {
+			res, err := c.ExecuteRequest(req)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			found |= res
+		}
+	}
+}
+
+func connectWatchers() []*wrc.WatcherClient {
+	// TODO: Call kubernetes api for automatic
+	// node discovery.
+	var nodes []string = []string{
+		"192.168.1.244",
+		"192.168.1.245",
+		"192.168.1.246",
+	}
+	res := make([]*wrc.WatcherClient, len(nodes))
+	for i, n := range nodes {
+		res[i] = wrc.NewWatcherClient(n)
+	}
+	return res
 }

@@ -25,6 +25,7 @@ LABEL maintainer="Giannis Fakinos"
 WORKDIR /app
 
 COPY go.mod go.sum ./
+COPY pkg/watcherClient/go.mod pkg/watcherClient/go.sum ./pkg/watcherClient/ 
 
 RUN go mod download
 

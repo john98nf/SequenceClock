@@ -9,6 +9,9 @@ const (
 type Request struct {
 	Function string      `form:"Function" binding:"required"`
 	Type     RequestType `form:"Type" binding:"required"`
+	// TO DO: Balance resources using the metrics mentioned below.
+	//slack time.Duration `form:"Function" binding:"required"`
+	//elapsedTime time.Duration `form:"Function" binding:"required"`
 }
 
 func newSpeedUpRequest(fName string) *Request {
