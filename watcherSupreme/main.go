@@ -24,8 +24,8 @@ import (
 	"log"
 	"net/http"
 
-	wrq "john8nf/SequenceClock/watcher/pkg/request"
-	wrc "john8nf/SequenceClock/watcherSupreme/pkg/watcherClient"
+	wrq "john98nf/SequenceClock/watcherSupreme/pkg/request"
+	wrc "john98nf/SequenceClock/watcherSupreme/pkg/watcherClient"
 
 	"github.com/gin-gonic/gin"
 )
@@ -76,10 +76,10 @@ func requestHandler(c *gin.Context) {
 	// 		return
 	// 	}
 	// }
-	go requestResourceAllocationFromWatchers(&req)
+	go requestResourceAllocationFromWatchers(req)
 	//requests[req.Function] = &req
 
-	c.String(http.StatusOK, "Speed up request is been processed")
+	c.String(http.StatusOK, "Request is been processed")
 }
 
 /*
@@ -87,15 +87,17 @@ func requestHandler(c *gin.Context) {
 	Request for resource allocation in every runtime
 	that the certain docker container is found.
 */
-func requestResourceAllocationFromWatchers(req *wrq.Request) {
-	for found := false; found; {
+func requestResourceAllocationFromWatchers(req wrq.Request) {
+	log.Println("Starting processing request from goroutine!")
+	for found := false; !found; {
 		for _, c := range clients {
-			res, err := c.ExecuteRequest(req)
+			res, err := c.ExecuteRequest(&req)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			found |= res
+			log.Printf("Watcher %v replied %v\n", c.Node, res)
+			found = found || res
 		}
 	}
 }

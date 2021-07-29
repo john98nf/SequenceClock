@@ -1,7 +1,7 @@
 package client
 
 import (
-	wrq "john98nf/SequenceClock/watcher/pkg/request"
+	wrq "john98nf/SequenceClock/watcherSupreme/pkg/request"
 	"net/http"
 	"net/url"
 
@@ -20,7 +20,7 @@ type WatcherClient struct {
 func NewWatcherClient(node string) *WatcherClient {
 	return &WatcherClient{
 		Node:        node,
-		RequestsURL: "http://" + node + ":8080/api/function/requestResoures",
+		RequestsURL: "http://" + node + ":8080/api/function/requestResources",
 	}
 }
 

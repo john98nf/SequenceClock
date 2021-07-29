@@ -25,7 +25,7 @@ LABEL maintainer="Giannis Fakinos"
 WORKDIR /app
 
 COPY go.mod go.sum ./
-COPY pkg/request/go.mod ./pkg/go.mod
+COPY pkg/request/go.mod ./pkg/request/go.mod
 
 RUN go mod download
 

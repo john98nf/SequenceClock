@@ -26,6 +26,7 @@ WORKDIR /app
 
 COPY go.mod go.sum ./
 COPY pkg/watcherClient/go.mod pkg/watcherClient/go.sum ./pkg/watcherClient/ 
+COPY pkg/request/go.mod ./pkg/request/ 
 
 RUN go mod download
 
