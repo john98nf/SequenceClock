@@ -22,14 +22,23 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"net/url"
 )
 
+const (
+	SpeedUpRequest int = iota + 1
+	SlowDownRequest
+	ResetRequest
+)
+
+type RequestType int
+
 type watcherClientInterface interface {
-	FunctionInvokationNotice(function string) error
-	// FuctionSpeedUpRequest(function string) error
-	// FuctionSlowDownRequest(function string) error
+	SpeedUpRequest(function string) (bool, error)
+	SlowDownRequest(function string) (bool, error)
+	ResetRequest(function string) (bool, error)
+	ExecuteRequest(function string, requestType RequestType) (bool, error)
 }
 
 type WatcherClient struct {
@@ -38,23 +47,35 @@ type WatcherClient struct {
 
 func NewWatcherClient(host string) *WatcherClient {
 	return &WatcherClient{
-		endpoint: "http://" + host + ":32042/api",
+		endpoint: "http://" + host + ":32042/api/function/requestResources",
 	}
 }
 
-func (client *WatcherClient) FunctionInvokationNotice(function string) error {
-	resp, err := http.Get(client.endpoint + "/function/" + function)
+func (client *WatcherClient) SpeedUpRequest(function string) (bool, error) {
+	return client.ExecuteRequest(function, SpeedUpRequest)
+}
+
+func (client *WatcherClient) SlowDownRequest(function string) (bool, error) {
+	return client.ExecuteRequest(function, SlowDownRequest)
+}
+
+func (client *WatcherClient) ResetRequest(function string) (bool, error) {
+	return client.ExecuteRequest(function, ResetRequest)
+}
+
+func (client *WatcherClient) ExecuteRequest(f string, rT int) (bool, error) {
+	params := url.Values{}
+	params.Add("Function", f)
+	params.Add("Type", fmt.Sprint(rT))
+	resp, err := http.PostForm(client.endpoint, params)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+
 	if resp.StatusCode == 200 {
-		return nil
+		return true, nil
 	} else {
-		return fmt.Errorf(string(body))
+		return false, nil
 	}
 }

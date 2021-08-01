@@ -69,15 +69,7 @@ func requestHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	// if oldReq,ok := requests[req.Function]; ok {
-	// 	// TODO: Find more clever way for resolving conflicts
-	// 	if oldReq.Type == req.Type || req.Type == wrq.SlowDownRequest {
-	// 		c.String(http.StatusOK, "Request ignored")
-	// 		return
-	// 	}
-	// }
 	go requestResourceAllocationFromWatchers(req)
-	//requests[req.Function] = &req
 
 	c.String(http.StatusOK, "Request is been processed")
 }
@@ -88,7 +80,7 @@ func requestHandler(c *gin.Context) {
 	that the certain docker container is found.
 */
 func requestResourceAllocationFromWatchers(req wrq.Request) {
-	log.Println("Starting processing request from goroutine!")
+	//log.Println("Starting processing request from goroutine!")
 	for found := false; !found; {
 		for _, c := range clients {
 			res, err := c.ExecuteRequest(&req)
@@ -96,7 +88,7 @@ func requestResourceAllocationFromWatchers(req wrq.Request) {
 				log.Println(err)
 				continue
 			}
-			log.Printf("Watcher %v replied %v\n", c.Node, res)
+			//log.Printf("Watcher %v replied %v\n", c.Node, res)
 			found = found || res
 		}
 	}

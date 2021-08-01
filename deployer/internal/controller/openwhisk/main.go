@@ -81,10 +81,12 @@ func dummyControl(obj map[string]interface{}) map[string]interface{} {
 */
 func greedyControl(obj map[string]interface{}) map[string]interface{} {
 	var (
-		tStart  time.Time
-		tEnd    time.Time
-		elapsed time.Duration
-		slack   time.Duration = 0
+		tStart   time.Time
+		tEnd     time.Time
+		elapsed  time.Duration
+		slack    time.Duration = 0
+		accepted bool
+		err      error
 	)
 
 	profiledExecutionTime := distributeLatency(TARGET_LATENCY, len(functionList))
@@ -93,15 +95,15 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 	aRes := obj
 	for i, f := range functionList {
 		if slack > 0 {
-			// TO DO: Actual slow down call to watcher supreme
 			log.Printf("Positive slack %v\n", slack)
-			if err := watcherClient.FunctionInvokationNotice(functionList[i]); err != nil {
+			accepted, err = watcherClient.SlowDownRequest(functionList[i])
+			if err != nil {
 				log.Printf("Error from watcher client: %v\n", err.Error())
 			}
 		} else if slack < 0 {
-			// TO DO: Actual speed up call to watcher supreme
 			log.Printf("Negative slack %v\n", slack)
-			if err := watcherClient.FunctionInvokationNotice(functionList[i]); err != nil {
+			accepted, err = watcherClient.SpeedUpRequest(functionList[i])
+			if err != nil {
 				log.Printf("Error from watcher client: %v\n", err.Error())
 			}
 		}
@@ -114,6 +116,12 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		elapsed = tEnd.Sub(tStart)
 		log.Printf("Elapsed time: %v\n", elapsed)
 		slack += profiledExecutionTime[i] - elapsed
+		if accepted {
+			log.Println("Sending reset request")
+			if _, err := watcherClient.ResetRequest(functionList[i]); err != nil {
+				log.Printf("Error from watcher client: %v\n", err.Error())
+			}
+		}
 	}
 	return aRes
 }
