@@ -18,48 +18,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-replicaCount: 1
+FROM golang:1.15.11 as builder
 
-watcher:
-  image:
-    repository: "192.168.1.243:5001/sequence-clock-watcher"
-    pullPolicy: Always
-    tag: "1.0"
-watcherSupreme:
-  image:
-    repository: "192.168.1.243:5001/sc-watcher-supreme"
-    pullPolicy: Always
-    tag: "1.0"
+LABEL maintainer="Giannis Fakinos"
 
-service:
-  type: NodePort
-  port: 8080
-  targetPort: 8080
-  nodePort: 32042
+WORKDIR /app
 
-cluster:
-  ignoreMasterTaint: false
+COPY go.mod go.sum ./
+COPY pkg/watcherClient/go.mod pkg/watcherClient/go.sum ./pkg/watcherClient/ 
+COPY pkg/request/go.mod ./pkg/request/ 
 
-imagePullSecrets: []
-nameOverride: "watcher"
-fullnameOverride: "watcher"
+RUN go mod download
 
-serviceAccount:
-  create: false
-  annotations: {}
-  name: ""
+COPY . .
 
-podAnnotations: {}
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 
-podSecurityContext: {}
+######## Start a new stage from scratch #######
+FROM alpine:latest  
 
-securityContext: {}
+RUN apk --no-cache add ca-certificates
 
-resources: {}
- 
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
+WORKDIR /root/
+
+COPY --from=builder /app/main .
+
+CMD ["./main"] 

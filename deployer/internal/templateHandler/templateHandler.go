@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	OPENWHISK_CONTROLLER_TEMPLATE string = "controller/openwhisk/"
-	OPENFAAS_CONTROLLER_TEMPLATE  string = "controller/openfaas/"
+	OPENWHISK_CONTROLLER_TEMPLATE string = "/tmp/controller/openwhisk/"
+	OPENFAAS_CONTROLLER_TEMPLATE  string = "/tmp/controller/openfaas/"
 	GO_RUNTIME                    string = "go:1.15"
 )
 

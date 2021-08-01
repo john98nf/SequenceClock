@@ -18,48 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-replicaCount: 1
-
-watcher:
-  image:
-    repository: "192.168.1.243:5001/sequence-clock-watcher"
-    pullPolicy: Always
-    tag: "1.0"
-watcherSupreme:
-  image:
-    repository: "192.168.1.243:5001/sc-watcher-supreme"
-    pullPolicy: Always
-    tag: "1.0"
-
-service:
-  type: NodePort
-  port: 8080
-  targetPort: 8080
-  nodePort: 32042
-
-cluster:
-  ignoreMasterTaint: false
-
-imagePullSecrets: []
-nameOverride: "watcher"
-fullnameOverride: "watcher"
-
-serviceAccount:
-  create: false
-  annotations: {}
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-
-securityContext: {}
-
-resources: {}
- 
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
+# Ignore executables
+*.exec
+watcherSupreme

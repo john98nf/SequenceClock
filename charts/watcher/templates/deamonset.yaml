@@ -35,14 +35,19 @@ spec:
     spec:
       # Include this part, if scheduling to master
       # node is desired.
-      # tolerations:
-      # - key: node-role.kubernetes.io/master
-      #   operator: Exists
-      #   effect: NoSchedule
+      {{ if eq .Values.cluster.ignoreMasterTaint true  }}
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      {{ end }}
       containers:
       - name: "{{ .Release.Name }}-{{ .Chart.Name }}"
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image: "{{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.watcher.image.pullPolicy }}
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-api-socket
         ports:
           - name: http
             containerPort: 8080
@@ -61,3 +66,8 @@ spec:
           httpGet:
             path: /api/check
             port: http
+      volumes:
+      - name: docker-api-socket
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
