@@ -19,17 +19,18 @@
 # SOFTWARE.
 
 apiVersion: v1
-kind: Pod
+kind: Service
 metadata:
-  name: "{{ include "sc-deployer.fullname" . }}-test-connection"
+  name: "{{ .Release.Name }}-watcher-sprm-svc"
   labels:
-    app: {{ .Values.appname }}
-  annotations:
-    "helm.sh/hook": test
+    app: "{{ .Release.Name }}-watcher-supreme"
 spec:
-  containers:
-    - name: wget
-      image: busybox
-      command: ['wget']
-      args: ['{{ include "sc-deployer.fullname" . }}-svc:{{ .Values.service.port }}/api/check']
-  restartPolicy: Never
+  type: {{ .Values.watcherSupreme.service.type }}
+  ports:
+    - port: {{ .Values.watcherSupreme.service.port }}
+      targetPort: {{ .Values.watcherSupreme.service.port }}
+      protocol: TCP
+      name: http
+      nodePort: {{ .Values.watcherSupreme.service.nodePort }}
+  selector:
+    app: "{{ .Release.Name }}-watcher-supreme"

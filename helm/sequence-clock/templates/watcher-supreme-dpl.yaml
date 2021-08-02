@@ -21,20 +21,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.appname }}
+  name: "{{ .Release.Name }}-watcher-supreme"
   labels:
-    app: {{ .Values.appname }}
+    app: "{{ .Release.Name }}-watcher-supreme"
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      app: {{ .Values.appname }}
+      app: "{{ .Release.Name }}-watcher-supreme"
   template:
     metadata:
       labels:
-        app: {{ .Values.appname }}
+        app: "{{ .Release.Name }}-watcher-supreme"
     spec:
       tolerations:
         - key: "node-role.kubernetes.io/master"
@@ -48,36 +48,14 @@ spec:
                 - key: "node-role.kubernetes.io/master"
                   operator: "Exists"
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          volumeMounts:
-          - name: ctrl-tpl
-            mountPath: "/tmp"
+        - name: "{{ .Release.Name }}-watcher-supreme"
+          image: "{{ .Values.watcherSupreme.image.repository }}:{{ .Values.watcherSupreme.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.watcherSupreme.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.watcherSupreme.service.port }}
               protocol: TCP
-          env:
-          - name: API_HOST
-            valueFrom:
-              configMapKeyRef:
-                name: {{ .Release.Name }}-wsk-info-configmap
-                key: apihost
-          - name: NAMESPACE
-            valueFrom:
-              configMapKeyRef:
-                name: {{ .Release.Name }}-wsk-info-configmap
-                key: namespace
-          - name: OPENWHISK_AUTH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Release.Name }}-openwhisk-secret
-                key: authToken
-          - name: HOST_IP
-            valueFrom:
-              fieldRef:
-                fieldPath: status.hostIP
+              nodePort: {{ .Values.watcherSupreme.service.nodePort }}
           livenessProbe:
             httpGet:
               path: /api/check
@@ -86,7 +64,3 @@ spec:
             httpGet:
               path: /api/check
               port: http
-      volumes:
-        - name: ctrl-tpl
-          persistentVolumeClaim:
-            claimName: ctrl-tpl-claim

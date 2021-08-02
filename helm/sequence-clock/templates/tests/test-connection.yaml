@@ -18,11 +18,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-apiVersion: v2
-name: watcher
-description: A Helm chart for DaemonSet of SequencClock
-type: application
-version: 0.1.0
-appVersion: "1.16.0"
-maintainers:
-  - name: Giannis Fakinos
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "sequence-clock.fullname" . }}-test-connection"
+  labels:
+    {{- include "sequence-clock.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: test-deployer
+      image: busybox
+      command: ['wget']
+      args: ['{{ .Release.Name }}-deployer-svc:{{ .Values.deployer.service.port }}/api/check']
+    - name: test-watcher-sprm
+      image: busybox
+      command: ['wget']
+      args: ['{{ .Release.Name }}-watcher-sprm-svc:{{ .Values.watcherSupreme.service.port }}/api/check']
+  restartPolicy: Never

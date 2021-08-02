@@ -18,11 +18,61 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-apiVersion: v2
-name: sc-deployer
-description: A Helm chart for sc-deployer
-type: application
-version: 0.1.0
-appVersion: "1.16.0"
-maintainers:
-  - name: Giannis Fakinos
+replicaCount: 1
+
+cluster:
+  ignoreMasterTaint: false
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+deployer:
+  image:
+    # TODO: Change image to john98nf/sequence-clock-deployer
+    # when repo becomes publicly available.
+    repository: "192.168.1.243:5001/sc-deployer"
+    pullPolicy: Always
+    tag: "1.0"
+    imagePullSecrets: []
+
+  service:
+    type: NodePort
+    port: 42000
+    targetPort: 42000
+
+watcher:
+  image:
+    repository: "192.168.1.243:5001/sequence-clock-watcher"
+    pullPolicy: Always
+    tag: "1.0"
+    imagePullSecrets: []
+
+watcherSupreme:
+  image:
+    repository: "192.168.1.243:5001/sc-watcher-supreme"
+    pullPolicy: Always
+    tag: "1.0"
+    imagePullSecrets: []
+
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 8080
+    nodePort: 32042
+
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+resources: {}

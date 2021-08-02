@@ -18,19 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: "{{ .Release.Name }}-{{ .Chart.Name }}-sprm-svc"
-  labels:
-    app: "{{ .Chart.Name }}-supreme"
-spec:
-  type: {{ .Values.service.type }}
-  ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      nodePort: {{ .Values.service.nodePort }}
-      protocol: TCP
-      name: http
-  selector:
-    app: "{{ .Chart.Name }}-supreme"
+apiVersion: v2
+name: sequence-clock
+description: A Helm chart for sequence-clock latency targeting tool.
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+maintainers:
+  - name: Giannis Fakinos
