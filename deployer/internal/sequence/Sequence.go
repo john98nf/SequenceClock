@@ -3,10 +3,10 @@ package sequence
 import "fmt"
 
 type Sequence struct {
-	Name          string   `json:"name,omitempty"`
-	Framework     string   `json:"framework,omitempty"`
-	AlgorithmType string   `json:"algorithmType,omitempty"`
-	Functions     []string `json:"functions,omitempty"`
+	Name          string   `form:"name" binding:"required"`
+	Framework     string   `form:"framework" binding:"required"`
+	AlgorithmType string   `form:"algorithm" binding:"required"`
+	Functions     []string `form:"functions" binding:"required"`
 }
 
 /*
