@@ -37,8 +37,6 @@ import (
 
 type controller (func(map[string]interface{}) map[string]interface{})
 
-const TARGET_LATENCY time.Duration = 500000000
-
 var (
 	client         *whisk.Client
 	controllerType = map[string]controller{
@@ -84,12 +82,10 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		tStart   time.Time
 		tEnd     time.Time
 		elapsed  time.Duration
-		slack    time.Duration = 0
+		slack    time.Duration
 		accepted bool
 		err      error
 	)
-
-	profiledExecutionTime := distributeLatency(TARGET_LATENCY, len(functionList))
 
 	watcherClient := NewWatcherClient(KUBE_MAIN_IP)
 	aRes := obj
@@ -124,16 +120,4 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		}
 	}
 	return aRes
-}
-
-func distributeLatency(latency time.Duration, n int) []time.Duration {
-	res := make([]time.Duration, n)
-	t := latency / time.Duration(n)
-	for i := range res {
-		res[i] = t
-	}
-	if mod := latency % time.Duration(n); mod != 0 {
-		res[n-1] = mod
-	}
-	return res
 }

@@ -62,7 +62,7 @@ watcherSupreme:
     type: NodePort
     port: 8080
     targetPort: 8080
-    nodePort: 32042
+    NodePort: 32042
 
 serviceAccount:
   create: false

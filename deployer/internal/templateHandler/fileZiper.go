@@ -19,7 +19,8 @@ const (
 		KUBE_MAIN_IP = "%v"
 )
 `
-	FUNCTION_SLICE string = "var functionList = [...]string{\"%v\"}"
+	FUNCTION_SLICE           string = "var functionList = [...]string{\"%v\"}"
+	PROFILED_EXECUTION_TIMES string = "var profiledExecutionTimes = [...]time.Duration{%v}"
 )
 
 type fileZiperInterface interface {
@@ -29,6 +30,13 @@ type fileZiperInterface interface {
 type fileZiper struct {
 	dstFolder  string
 	baseFolder string
+}
+
+func NewFileZiper(dstFolder, baseFolder string) *fileZiper {
+	return &fileZiper{
+		dstFolder:  dstFolder,
+		baseFolder: baseFolder,
+	}
 }
 
 func (obj *fileZiper) zipTemplate(seq sq.Sequence) (string, error) {
@@ -97,11 +105,22 @@ func addConfig(w *zip.Writer, seq sq.Sequence) error {
 		return errF
 	}
 
-	dat := []byte(PACKAGE_DEFINITION + fmt.Sprintf(CONSTANTS, seq.AlgorithmType, os.Getenv("HOST_IP")) + fmt.Sprintf(FUNCTION_SLICE, strings.Join(seq.Functions, "\",\"")))
+	dat := []byte(PACKAGE_DEFINITION +
+		fmt.Sprintf(CONSTANTS, seq.AlgorithmType, os.Getenv("HOST_IP")) +
+		fmt.Sprintf(FUNCTION_SLICE, strings.Join(seq.Functions, "\",\"")) +
+		fmt.Sprintf(PROFILED_EXECUTION_TIMES, strings.Join(stringify(seq.ProfiledExecutionTimes), ",")))
 
 	_, errW := f.Write(dat)
 	if errW != nil {
 		return errW
 	}
 	return nil
+}
+
+func stringify(l ...interface{}) []string {
+	s := make([]string, len(l))
+	for i, elem := range l {
+		s[i], _ = elem.(string)
+	}
+	return s
 }
