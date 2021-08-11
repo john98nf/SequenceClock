@@ -28,9 +28,9 @@ spec:
   type: {{ .Values.watcherSupreme.service.type }}
   ports:
     - port: {{ .Values.watcherSupreme.service.port }}
+      nodePort: {{ .Values.watcherSupreme.service.NodePort }}
       targetPort: {{ .Values.watcherSupreme.service.port }}
       protocol: TCP
       name: http
-      nodePort: {{ .Values.watcherSupreme.service.nodePort }}
   selector:
     app: "{{ .Release.Name }}-watcher-supreme"

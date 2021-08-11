@@ -38,7 +38,6 @@ deployer:
     pullPolicy: Always
     tag: "1.0"
     imagePullSecrets: []
-
   service:
     type: NodePort
     port: 42000
@@ -57,7 +56,6 @@ watcherSupreme:
     pullPolicy: Always
     tag: "1.0"
     imagePullSecrets: []
-
   service:
     type: NodePort
     port: 8080
