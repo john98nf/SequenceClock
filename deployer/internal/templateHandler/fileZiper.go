@@ -7,20 +7,27 @@ import (
 	sq "john98nf/SequenceClock/deployer/internal/sequence"
 	"os"
 	"strings"
+	"time"
 )
 
 const (
 	PACKAGE_DEFINITION string = `package main
+	
+	import "time"
+
 `
 	CONFIG_CONTROLLER_FILE string = "config.go"
 	ZIP_ARCHIVE_PATH       string = "%v/%v.zip"
 	CONSTANTS              string = `const (
 		ALGORITHM_TYPE string = "%v"
-		KUBE_MAIN_IP = "%v"
+		KUBE_MAIN_IP string = "%v"
 )
 `
-	FUNCTION_SLICE           string = "var functionList = [...]string{\"%v\"}"
-	PROFILED_EXECUTION_TIMES string = "var profiledExecutionTimes = [...]time.Duration{%v}"
+	VARIABLES string = `var (
+		functionList = [...]string{"%v"}
+		profiledExecutionTimes = [...]time.Duration{%v}
+)
+`
 )
 
 type fileZiperInterface interface {
@@ -107,8 +114,9 @@ func addConfig(w *zip.Writer, seq sq.Sequence) error {
 
 	dat := []byte(PACKAGE_DEFINITION +
 		fmt.Sprintf(CONSTANTS, seq.AlgorithmType, os.Getenv("HOST_IP")) +
-		fmt.Sprintf(FUNCTION_SLICE, strings.Join(seq.Functions, "\",\"")) +
-		fmt.Sprintf(PROFILED_EXECUTION_TIMES, strings.Join(stringify(seq.ProfiledExecutionTimes), ",")))
+		fmt.Sprintf(VARIABLES,
+			strings.Join(seq.Functions, "\",\""),
+			strings.Join(stringify(seq.ProfiledExecutionTimes), ",")))
 
 	_, errW := f.Write(dat)
 	if errW != nil {
@@ -117,10 +125,10 @@ func addConfig(w *zip.Writer, seq sq.Sequence) error {
 	return nil
 }
 
-func stringify(l ...interface{}) []string {
+func stringify(l []time.Duration) []string {
 	s := make([]string, len(l))
 	for i, elem := range l {
-		s[i], _ = elem.(string)
+		s[i] = fmt.Sprint(elem.Nanoseconds())
 	}
 	return s
 }

@@ -65,8 +65,8 @@ func create(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	if seq.TargetLatency == 0 && len(seq.ProfiledExecutionTimes) == 0 {
-		c.String(http.StatusBadRequest, "Please provide a target latency or an estimation of execution time of each function.")
+	if err := seq.Validate(); err != nil {
+		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
 	wskConfig := &whisk.Config{

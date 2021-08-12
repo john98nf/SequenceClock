@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/apache/openwhisk-client-go/whisk"
 
@@ -36,9 +35,6 @@ type Template struct {
 	Creates a new Template struct.
 */
 func NewTemplate(sequence *sq.Sequence, client *whisk.Client) *Template {
-	if sequence.TargetLatency != 0 {
-		calculateProfiledExecutionTimes(sequence)
-	}
 	return &Template{
 		Sequence: sequence,
 		Client:   client,
@@ -117,19 +113,4 @@ func execPath() (string, error) {
 		return "", err
 	}
 	return filepath.Dir(ex), nil
-}
-
-/*
-	Calculates profiled execution times for a given sequence.
-*/
-func calculateProfiledExecutionTimes(s *sq.Sequence) {
-	n := len(s.Functions)
-	s.ProfiledExecutionTimes = make([]time.Duration, n)
-	t := s.TargetLatency / time.Duration(n)
-	for i := 0; i < n; i++ {
-		s.ProfiledExecutionTimes[i] = t
-	}
-	if mod := s.TargetLatency % time.Duration(n); mod != 0 {
-		s.ProfiledExecutionTimes[n-1] = mod
-	}
 }

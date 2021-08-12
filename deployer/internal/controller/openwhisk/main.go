@@ -111,7 +111,7 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		tEnd = time.Now()
 		elapsed = tEnd.Sub(tStart)
 		log.Printf("Elapsed time: %v\n", elapsed)
-		slack += profiledExecutionTime[i] - elapsed
+		slack += profiledExecutionTimes[i] - elapsed
 		if accepted {
 			log.Println("Sending reset request")
 			if _, err := watcherClient.ResetRequest(functionList[i]); err != nil {
