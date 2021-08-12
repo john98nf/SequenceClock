@@ -18,11 +18,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-apiVersion: v2
-name: watcher
-description: A Helm chart for DaemonSet of SequencClock
-type: application
-version: 0.1.0
-appVersion: "1.16.0"
-maintainers:
-  - name: Giannis Fakinos
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Release.Name }}-watcher-sprm-svc"
+  labels:
+    app: "{{ .Release.Name }}-watcher-supreme"
+spec:
+  type: {{ .Values.watcherSupreme.service.type }}
+  ports:
+    - port: {{ .Values.watcherSupreme.service.port }}
+      nodePort: {{ .Values.watcherSupreme.service.NodePort }}
+      targetPort: {{ .Values.watcherSupreme.service.port }}
+      protocol: TCP
+      name: http
+  selector:
+    app: "{{ .Release.Name }}-watcher-supreme"

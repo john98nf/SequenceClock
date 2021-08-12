@@ -35,10 +35,10 @@ const (
 type RequestType int
 
 type watcherClientInterface interface {
-	SpeedUpRequest(function string) (bool, error)
-	SlowDownRequest(function string) (bool, error)
-	ResetRequest(function string) (bool, error)
-	ExecuteRequest(function string, requestType RequestType) (bool, error)
+	SpeedUpRequest(function string) error
+	SlowDownRequest(function string) error
+	ResetRequest(function string) error
+	ExecuteRequest(function string, requestType RequestType) error
 }
 
 type WatcherClient struct {
@@ -51,31 +51,31 @@ func NewWatcherClient(host string) *WatcherClient {
 	}
 }
 
-func (client *WatcherClient) SpeedUpRequest(function string) (bool, error) {
+func (client *WatcherClient) SpeedUpRequest(function string) error {
 	return client.ExecuteRequest(function, SpeedUpRequest)
 }
 
-func (client *WatcherClient) SlowDownRequest(function string) (bool, error) {
+func (client *WatcherClient) SlowDownRequest(function string) error {
 	return client.ExecuteRequest(function, SlowDownRequest)
 }
 
-func (client *WatcherClient) ResetRequest(function string) (bool, error) {
+func (client *WatcherClient) ResetRequest(function string) error {
 	return client.ExecuteRequest(function, ResetRequest)
 }
 
-func (client *WatcherClient) ExecuteRequest(f string, rT int) (bool, error) {
+func (client *WatcherClient) ExecuteRequest(f string, rT int) error {
 	params := url.Values{}
 	params.Add("Function", f)
 	params.Add("Type", fmt.Sprint(rT))
 	resp, err := http.PostForm(client.endpoint, params)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 200 {
-		return true, nil
+		return nil
 	} else {
-		return false, nil
+		return fmt.Errorf("watcher responded with %v status code", resp.StatusCode)
 	}
 }

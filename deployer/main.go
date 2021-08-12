@@ -60,16 +60,15 @@ func check(c *gin.Context) {
 	and deploying it to cluster.
 */
 func create(c *gin.Context) {
-	name := c.PostForm("name")
-	framework := c.PostForm("framework")
-	algorithm := c.PostForm("algorithm")
-	functions := c.PostFormArray("functions")
-	seq, errS := sequence.NewSequence(name, framework, algorithm, functions...)
-	if errS != nil {
-		c.String(http.StatusBadRequest, errS.Error())
+	var seq sequence.Sequence
+	if err := c.ShouldBind(&seq); err != nil {
+		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-
+	if err := seq.Validate(); err != nil {
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
 	wskConfig := &whisk.Config{
 		Host:      os.Getenv("API_HOST"),
 		Namespace: os.Getenv("NAMESPACE"),
@@ -82,7 +81,7 @@ func create(c *gin.Context) {
 		return
 	}
 
-	template := tpl.NewTemplate(seq, client)
+	template := tpl.NewTemplate(&seq, client)
 	if err := template.Create(); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
@@ -98,7 +97,7 @@ func create(c *gin.Context) {
 		return
 	}
 
-	c.String(http.StatusOK, "Create request for '%v'.", name)
+	c.String(http.StatusOK, "Sequence '%v' created.", seq.Name)
 }
 
 /*

@@ -21,17 +21,17 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: "{{ .Release.Name }}-{{ .Chart.Name }}"
+  name: "{{ .Release.Name }}-watcher"
   labels:
-    app: "{{ .Release.Name }}-{{ .Chart.Name }}"
+    app: "{{ .Release.Name }}-watcher"
 spec:
   selector:
     matchLabels:
-      name: "{{ .Release.Name }}-{{ .Chart.Name }}"
+      name: "{{ .Release.Name }}-watcher"
   template:
     metadata:
       labels:
-        name: "{{ .Release.Name }}-{{ .Chart.Name }}"
+        name: "{{ .Release.Name }}-watcher"
     spec:
       # Include this part, if scheduling to master
       # node is desired.
@@ -42,7 +42,7 @@ spec:
         effect: NoSchedule
       {{ end }}
       containers:
-      - name: "{{ .Release.Name }}-{{ .Chart.Name }}"
+      - name: "{{ .Release.Name }}-watcher"
         image: "{{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.watcher.image.pullPolicy }}
         volumeMounts:

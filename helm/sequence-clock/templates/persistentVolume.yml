@@ -18,11 +18,24 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-apiVersion: v2
-name: sc-deployer
-description: A Helm chart for sc-deployer
-type: application
-version: 0.1.0
-appVersion: "1.16.0"
-maintainers:
-  - name: Giannis Fakinos
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: ctrl-tpl-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /mnt/disks/vol/
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-role.kubernetes.io/master
+          operator: "Exists"

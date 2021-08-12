@@ -1,12 +1,16 @@
 package sequence
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Sequence struct {
-	Name          string   `json:"name,omitempty"`
-	Framework     string   `json:"framework,omitempty"`
-	AlgorithmType string   `json:"algorithmType,omitempty"`
-	Functions     []string `json:"functions,omitempty"`
+	Name                   string          `form:"name" binding:"required"`
+	Framework              string          `form:"framework" binding:"required"`
+	AlgorithmType          string          `form:"algorithm" binding:"required"`
+	Functions              []string        `form:"functions" binding:"required"`
+	ProfiledExecutionTimes []time.Duration `form:"elapsedTimes" binding:"required"`
 }
 
 /*
@@ -16,14 +20,23 @@ func NewSequence(
 	name,
 	framework,
 	algorithmType string,
-	functions ...string) (*Sequence, error) {
-	if name == "" || algorithmType == "" || framework == "" || len(functions) == 0 {
-		return nil, fmt.Errorf("can't create a sequence with empty fields")
-	}
+	functions []string,
+	profiledExecutionTimes []time.Duration) (*Sequence, error) {
 	return &Sequence{
-		Name:          name,
-		Framework:     framework,
-		AlgorithmType: algorithmType,
-		Functions:     functions,
+		Name:                   name,
+		Framework:              framework,
+		AlgorithmType:          algorithmType,
+		Functions:              functions,
+		ProfiledExecutionTimes: profiledExecutionTimes,
 	}, nil
+}
+
+/*
+	Validates Sequence struct
+*/
+func (s *Sequence) Validate() error {
+	if len(s.ProfiledExecutionTimes) != len(s.Functions) {
+		return fmt.Errorf(("inconsistent sequence"))
+	}
+	return nil
 }

@@ -21,20 +21,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "{{ .Release.Name }}-{{ .Chart.Name }}-sprm"
+  name: {{ .Release.Name }}-deployer
   labels:
-    app: "{{ .Chart.Name }}-supreme"
+    app: {{ .Release.Name }}-deployer
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      app: "{{ .Chart.Name }}-supreme"
+      app: {{ .Release.Name }}-deployer
   template:
     metadata:
       labels:
-        app: "{{ .Chart.Name }}-supreme"
+        app: {{ .Release.Name }}-deployer
     spec:
       tolerations:
         - key: "node-role.kubernetes.io/master"
@@ -48,13 +48,36 @@ spec:
                 - key: "node-role.kubernetes.io/master"
                   operator: "Exists"
       containers:
-        - name: "{{ .Chart.Name }}-supreme"
-          image: "{{ .Values.watcherSupreme.image.repository }}:{{ .Values.watcherSupreme.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.watcherSupreme.image.pullPolicy }}
+        - name: {{ .Release.Name }}-deployer
+          image: "{{ .Values.deployer.image.repository }}:{{ .Values.deployer.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.deployer.image.pullPolicy }}
+          volumeMounts:
+          - name: ctrl-tpl
+            mountPath: "/tmp"
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.deployer.service.port }}
               protocol: TCP
+          env:
+          - name: API_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: {{ .Release.Name }}-wsk-info-configmap
+                key: apihost
+          - name: NAMESPACE
+            valueFrom:
+              configMapKeyRef:
+                name: {{ .Release.Name }}-wsk-info-configmap
+                key: namespace
+          - name: OPENWHISK_AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Release.Name }}-openwhisk-secret
+                key: authToken
+          - name: HOST_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
           livenessProbe:
             httpGet:
               path: /api/check
@@ -63,3 +86,7 @@ spec:
             httpGet:
               path: /api/check
               port: http
+      volumes:
+        - name: ctrl-tpl
+          persistentVolumeClaim:
+            claimName: ctrl-tpl-claim

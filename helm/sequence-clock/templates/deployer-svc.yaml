@@ -18,26 +18,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Patterns to ignore when building packages.
-# This supports shell glob matching, relative path matching, and
-# negation (prefixed with !). Only one pattern per line.
-.DS_Store
-# Common VCS dirs
-.git/
-.gitignore
-.bzr/
-.bzrignore
-.hg/
-.hgignore
-.svn/
-# Common backup files
-*.swp
-*.bak
-*.tmp
-*.orig
-*~
-# Various IDEs
-.project
-.idea/
-*.tmproj
-.vscode/
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-deployer-svc
+  labels:
+    app: {{ .Release.Name }}-deployer
+spec:
+  type: {{ .Values.deployer.service.type }}
+  ports:
+    - port: {{ .Values.deployer.service.port }}
+      targetPort: {{ .Values.deployer.service.port }}
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ .Release.Name }}-deployer

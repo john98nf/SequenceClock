@@ -19,9 +19,21 @@
 # SOFTWARE.
 
 apiVersion: v1
-kind: ConfigMap
+kind: Pod
 metadata:
-  name: {{ .Release.Name }}-wsk-info-configmap
-data:
-  apihost: {{ required "A valid .Values.openwhisk.apihost entry required!" .Values.openwhisk.apihost }}
-  namespace: {{ .Values.openwhisk.namespace }}
+  name: "{{ include "sequence-clock.fullname" . }}-test-connection"
+  labels:
+    {{- include "sequence-clock.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: test-deployer
+      image: busybox
+      command: ['wget']
+      args: ['{{ .Release.Name }}-deployer-svc:{{ .Values.deployer.service.port }}/api/check']
+    - name: test-watcher-sprm
+      image: busybox
+      command: ['wget']
+      args: ['{{ .Release.Name }}-watcher-sprm-svc:{{ .Values.watcherSupreme.service.port }}/api/check']
+  restartPolicy: Never

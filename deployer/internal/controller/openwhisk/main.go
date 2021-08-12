@@ -37,8 +37,6 @@ import (
 
 type controller (func(map[string]interface{}) map[string]interface{})
 
-const TARGET_LATENCY time.Duration = 500000000
-
 var (
 	client         *whisk.Client
 	controllerType = map[string]controller{
@@ -81,29 +79,24 @@ func dummyControl(obj map[string]interface{}) map[string]interface{} {
 */
 func greedyControl(obj map[string]interface{}) map[string]interface{} {
 	var (
-		tStart   time.Time
-		tEnd     time.Time
-		elapsed  time.Duration
-		slack    time.Duration = 0
-		accepted bool
-		err      error
+		tStart  time.Time
+		tEnd    time.Time
+		elapsed time.Duration
+		slack   time.Duration
+		err     error
 	)
-
-	profiledExecutionTime := distributeLatency(TARGET_LATENCY, len(functionList))
 
 	watcherClient := NewWatcherClient(KUBE_MAIN_IP)
 	aRes := obj
 	for i, f := range functionList {
 		if slack > 0 {
 			log.Printf("Positive slack %v\n", slack)
-			accepted, err = watcherClient.SlowDownRequest(functionList[i])
-			if err != nil {
+			if err = watcherClient.SlowDownRequest(functionList[i]); err != nil {
 				log.Printf("Error from watcher client: %v\n", err.Error())
 			}
 		} else if slack < 0 {
 			log.Printf("Negative slack %v\n", slack)
-			accepted, err = watcherClient.SpeedUpRequest(functionList[i])
-			if err != nil {
+			if err = watcherClient.SpeedUpRequest(functionList[i]); err != nil {
 				log.Printf("Error from watcher client: %v\n", err.Error())
 			}
 		}
@@ -115,25 +108,13 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		tEnd = time.Now()
 		elapsed = tEnd.Sub(tStart)
 		log.Printf("Elapsed time: %v\n", elapsed)
-		slack += profiledExecutionTime[i] - elapsed
-		if accepted {
-			log.Println("Sending reset request")
-			if _, err := watcherClient.ResetRequest(functionList[i]); err != nil {
-				log.Printf("Error from watcher client: %v\n", err.Error())
-			}
+		slack += profiledExecutionTimes[i] - elapsed
+
+		log.Println("Sending reset request")
+		if err := watcherClient.ResetRequest(functionList[i]); err != nil {
+			log.Printf("Error from watcher client: %v\n", err.Error())
 		}
 	}
+	log.Printf("Last slack %v\n", slack)
 	return aRes
-}
-
-func distributeLatency(latency time.Duration, n int) []time.Duration {
-	res := make([]time.Duration, n)
-	t := latency / time.Duration(n)
-	for i := range res {
-		res[i] = t
-	}
-	if mod := latency % time.Duration(n); mod != 0 {
-		res[n-1] = mod
-	}
-	return res
 }

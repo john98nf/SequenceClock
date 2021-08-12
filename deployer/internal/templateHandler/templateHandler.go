@@ -52,10 +52,7 @@ func (tpl *Template) Create() error {
 		log.Println(errP)
 		return fmt.Errorf("couldn't found executable path")
 	}
-	fziper := &fileZiper{
-		dstFolder:  execPath,
-		baseFolder: OPENWHISK_CONTROLLER_TEMPLATE,
-	}
+	fziper := NewFileZiper(execPath, OPENWHISK_CONTROLLER_TEMPLATE)
 	zipFile, errZ := fziper.zipTemplate(*tpl.Sequence)
 	if errZ != nil {
 		log.Println(errZ)
