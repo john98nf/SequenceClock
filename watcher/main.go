@@ -27,7 +27,7 @@ import (
 	"os"
 	"regexp"
 
-	wrq "john98nf/SequenceClock/watcher/pkg/request"
+	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
