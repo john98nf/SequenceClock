@@ -4,10 +4,11 @@ import (
 	"archive/zip"
 	"fmt"
 	"io/ioutil"
-	sq "john98nf/SequenceClock/deployer/internal/sequence"
 	"os"
 	"strings"
 	"time"
+
+	sq "github.com/john98nf/SequenceClock/deployer/internal/sequence"
 )
 
 const (
