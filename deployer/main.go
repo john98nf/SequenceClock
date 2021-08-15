@@ -25,8 +25,8 @@ import (
 	"net/http"
 	"os"
 
-	sequence "john98nf/SequenceClock/deployer/internal/sequence"
-	tpl "john98nf/SequenceClock/deployer/internal/templateHandler"
+	sequence "github.com/john98nf/SequenceClock/deployer/internal/sequence"
+	tpl "github.com/john98nf/SequenceClock/deployer/internal/templateHandler"
 
 	"github.com/apache/openwhisk-client-go/whisk"
 	"github.com/gin-gonic/gin"

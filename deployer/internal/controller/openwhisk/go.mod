@@ -1,4 +1,4 @@
-module john98nf/SequenceClock/deployer/internal/controller
+module github.com/john98nf/SequenceClock/deployer/internal/controller
 
 go 1.15
 

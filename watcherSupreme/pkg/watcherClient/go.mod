@@ -1,4 +1,4 @@
-module john98nf/SequenceClock/watcherSupreme/pkg/watcherClient
+module github.com/john98nf/SequenceClock/watcherSupreme/pkg/watcherClient
 
 go 1.15
 

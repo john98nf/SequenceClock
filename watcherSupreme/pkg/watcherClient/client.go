@@ -1,9 +1,10 @@
 package client
 
 import (
-	wrq "john98nf/SequenceClock/watcherSupreme/pkg/request"
 	"net/http"
 	"net/url"
+
+	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 
 	"github.com/iris-contrib/schema"
 )
