@@ -24,8 +24,8 @@ import (
 	"log"
 	"net/http"
 
-	wrq "john98nf/SequenceClock/watcherSupreme/pkg/request"
-	wrc "john98nf/SequenceClock/watcherSupreme/pkg/watcherClient"
+	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
+	wrc "github.com/john98nf/SequenceClock/watcherSupreme/pkg/watcherClient"
 
 	"github.com/gin-gonic/gin"
 )
