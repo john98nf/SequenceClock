@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	sq "github.com/john98nf/SequenceClock/deployer/internal/sequence"
+	sq "github.com/john98nf/SequenceClock/deployer/pkg/sequence"
 )
 
 const (
