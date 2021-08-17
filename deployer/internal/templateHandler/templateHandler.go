@@ -10,7 +10,7 @@ import (
 
 	"github.com/apache/openwhisk-client-go/whisk"
 
-	sq "github.com/john98nf/SequenceClock/deployer/internal/sequence"
+	sq "github.com/john98nf/SequenceClock/deployer/pkg/sequence"
 )
 
 const (
