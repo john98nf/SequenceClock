@@ -1,4 +1,4 @@
-name: SC-WatcherSupreme Docker Image CI
+name: SC-Watcher-Supreme Docker Image CI
 
 on:
   push:
@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout repository code
+      uses: actions/checkout@v2
+    - name: Set up ssh agent
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SSH_REPO_KEY }}
     - name: Build the Docker image
-      run: cd watcherSupreme && docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      run: cd watcher && docker build --ssh default . --file Dockerfile --tag john98nf/sc-watcher-supreme:$(date +%s)

@@ -24,11 +24,15 @@ LABEL maintainer="Giannis Fakinos"
 
 WORKDIR /app
 
+ENV GOPRIVATE="github.com/john98nf/SequenceClock"
+
 COPY go.mod go.sum ./
 COPY pkg/watcherClient/go.mod pkg/watcherClient/go.sum ./pkg/watcherClient/ 
-COPY pkg/request/go.mod ./pkg/request/ 
 
-RUN go mod download
+RUN git config --global url.git@github.com:.insteadOf https://github.com/ && \
+    mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+RUN --mount=type=ssh go mod download
 
 COPY . .
 
