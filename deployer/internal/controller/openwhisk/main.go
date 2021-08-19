@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/apache/openwhisk-client-go/whisk"
+	req "github.com/john98nf/SequenceClock/watcher/pkg/request"
 )
 
 type controller (func(map[string]interface{}) map[string]interface{})
@@ -45,6 +46,9 @@ var (
 	}
 )
 
+/*
+	Main serveless function.
+*/
 func Main(obj map[string]interface{}) map[string]interface{} {
 	wskConfig := &whisk.Config{
 		Host:      os.Getenv("__OW_API_HOST"),
@@ -82,39 +86,34 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		tStart  time.Time
 		tEnd    time.Time
 		elapsed time.Duration
-		slack   time.Duration
-		err     error
+		r       req.Request = req.NewRequest("", &req.Metrics{})
 	)
 
 	watcherClient := NewWatcherClient(KUBE_MAIN_IP)
 	aRes := obj
 	for i, f := range functionList {
-		if slack > 0 {
-			log.Printf("Positive slack %v\n", slack)
-			if err = watcherClient.SlowDownRequest(functionList[i]); err != nil {
-				log.Printf("Error from watcher client: %v\n", err.Error())
-			}
-		} else if slack < 0 {
-			log.Printf("Negative slack %v\n", slack)
-			if err = watcherClient.SpeedUpRequest(functionList[i]); err != nil {
-				log.Printf("Error from watcher client: %v\n", err.Error())
-			}
+		tStart = time.Now()
+		log.Printf("Slack: %v\n", r.Slack)
+		r.Function = functionsList[i]
+		reset, err := watcherClient.RequestResources(r)
+		if err != nil {
+			log.Printf("Error from watcher client: %v\n", err.Error())
 		}
 
 		log.Printf("Invoking function-%v %v\n", i, f)
-
-		tStart = time.Now()
 		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
+
+		log.Println("Sending reset request")
+		if err := watcherClient.ResetRequest(reset); err != nil {
+			log.Printf("Error from watcher client: %v\n", err.Error())
+		}
 		tEnd = time.Now()
 		elapsed = tEnd.Sub(tStart)
 		log.Printf("Elapsed time: %v\n", elapsed)
-		slack += profiledExecutionTimes[i] - elapsed
-
-		log.Println("Sending reset request")
-		if err := watcherClient.ResetRequest(functionList[i]); err != nil {
-			log.Printf("Error from watcher client: %v\n", err.Error())
-		}
+		r.PreviousSlack = r.Slack
+		r.Slack += profiledExecutionTimes[i] - elapsed
+		r.SumOfSlack += r.Slack
 	}
-	log.Printf("Last slack %v\n", slack)
+	log.Printf("Last slack %v\n", r.Slack)
 	return aRes
 }

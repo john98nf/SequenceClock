@@ -1,19 +1,37 @@
+# github.com/ajg/form v1.5.1
+## explicit
 # github.com/apache/openwhisk-client-go v0.0.0-20210313152306-ea317ea2794c
 ## explicit
 github.com/apache/openwhisk-client-go/whisk
 github.com/apache/openwhisk-client-go/wski18n
 # github.com/cloudfoundry/jibber_jabber v0.0.0-20151120183258-bcc4c8345a21
 github.com/cloudfoundry/jibber_jabber
+# github.com/fasthttp-contrib/websocket v0.0.0-20160511215533-1f3b11f56072
+## explicit
 # github.com/fatih/color v1.10.0
 github.com/fatih/color
 # github.com/google/go-querystring v1.0.0
 github.com/google/go-querystring/query
 # github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519
 github.com/hokaccha/go-prettyjson
+# github.com/imkira/go-interpol v1.1.0
+## explicit
+# github.com/iris-contrib/schema v0.0.6
+## explicit
+github.com/iris-contrib/schema
+# github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210819124620-01cef962e2d0
+## explicit
+github.com/john98nf/SequenceClock/watcher/pkg/request
+# github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88
+## explicit
+# github.com/kataras/iris/v12 v12.1.8
+## explicit
 # github.com/mattn/go-colorable v0.1.8
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.12
 github.com/mattn/go-isatty
+# github.com/moul/http2curl v1.0.0
+## explicit
 # github.com/nicksnyder/go-i18n v1.10.1
 github.com/nicksnyder/go-i18n/i18n
 github.com/nicksnyder/go-i18n/i18n/bundle
@@ -21,7 +39,25 @@ github.com/nicksnyder/go-i18n/i18n/language
 github.com/nicksnyder/go-i18n/i18n/translation
 # github.com/pelletier/go-toml v1.2.0
 github.com/pelletier/go-toml
-# golang.org/x/sys v0.0.0-20210112080510-489259a85091
+# github.com/sergi/go-diff v1.2.0
+## explicit
+# github.com/shurcooL/sanitized_anchor_name v1.0.0
+## explicit
+# github.com/smartystreets/goconvey v1.6.4
+## explicit
+# github.com/valyala/fasthttp v1.29.0
+## explicit
+# github.com/xeipuuv/gojsonschema v1.2.0
+## explicit
+# github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0
+## explicit
+# github.com/yudai/gojsondiff v1.0.0
+## explicit
+# github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82
+## explicit
+# github.com/yudai/pp v2.0.1+incompatible
+## explicit
+# golang.org/x/sys v0.0.0-20210514084401-e8d321eab015
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 # gopkg.in/yaml.v2 v2.3.0
