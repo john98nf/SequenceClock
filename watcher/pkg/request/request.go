@@ -1,38 +1,32 @@
 package request
 
-const (
-	SpeedUpRequest RequestType = iota + 1
-	SlowDownRequest
-	ResetRequest
-)
-
 type Request struct {
-	Function string      `form:"Function" binding:"required"`
-	Type     RequestType `form:"Type" binding:"required"`
-	// TO DO: Balance resources using the metrics mentioned below.
-	//slack time.Duration `form:"Function" binding:"required"`
-	//elapsedTime time.Duration `form:"Function" binding:"required"`
+	Function string   `form:"function" binding:"required"`
+	Metrics  *Metrics `form:"metrics" binding:"required"`
 }
 
-func newSpeedUpRequest(fName string) *Request {
-	return &Request{
-		Function: fName,
-		Type:     SpeedUpRequest,
+type ResetRequest struct {
+	Id       uint64 `form:"id" binding:"required"`
+	Function string `form:"function" binding:"required"`
+}
+
+type Metrics struct {
+	Slack                 int64 `form:"slack" binding:"required"`         // Used by P controller
+	SumOfSlack            int64 `form:"sumOfSlack" binding:"required"`    // Used by I controller
+	PreviousSlack         int64 `form:"previousSlack" binding:"required"` // Used by D controller
+	ProfiledExecutionTime int64 `form:"profiledExecutionTime" binding:"required"`
+}
+
+func NewResetRequest(id uint64, function string) *ResetRequest {
+	return &ResetRequest{
+		Id:       id,
+		Function: function,
 	}
 }
 
-func newSlowDownRequest(fName string) *Request {
+func NewRequest(f string, m *Metrics) *Request {
 	return &Request{
-		Function: fName,
-		Type:     SlowDownRequest,
+		Function: f,
+		Metrics:  m,
 	}
 }
-
-func newResetRequest(fName string) *Request {
-	return &Request{
-		Function: fName,
-		Type:     ResetRequest,
-	}
-}
-
-type RequestType int
