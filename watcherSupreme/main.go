@@ -31,8 +31,9 @@ import (
 )
 
 var (
-	clients []*wrc.WatcherClient
-	//requests map[string]*wrq.Request
+	clients   []*wrc.WatcherClient
+	placement map[uint64][]*wrc.WatcherClient
+	counterID uint64
 )
 
 func main() {
@@ -44,9 +45,11 @@ func main() {
 		apiWatcher.GET("/check", check)
 		// POST Request http://localhost:8080/api/function/requestResources
 		apiWatcher.POST("/function/requestResources", requestHandler)
+		// POST Request http://localhost:8080/api/function/resetResources
+		apiWatcher.POST("/function/resetResources", resetHandler)
 	}
 
-	//requests = make(map[string]*wrq.Request)
+	placement = make(map[uint64][]*wrc.WatcherClient)
 	clients = connectWatchers()
 	router.Run(":8080")
 }
@@ -59,7 +62,7 @@ func check(c *gin.Context) {
 }
 
 /*
-	SpeedUp/SlowDown Request for certain function.
+	SpeedUp/Normal/SlowDown Request for certain function.
 	Watcher supreme wil inform watchers, which will
 	search their docker runtime for the actual docker container.
 */
@@ -69,9 +72,28 @@ func requestHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	go requestResourceAllocationFromWatchers(req)
+	reset := wrq.NewResetRequest(counterID, req.Function)
+	counterID++
+	go requestResourceAllocationFromWatchers(req, reset.Id)
 
-	c.String(http.StatusOK, "Request is been processed")
+	c.JSON(http.StatusOK, *reset)
+}
+
+/*
+	Reset Request
+	Watcher Supreme informs only involved watcher nodes,
+	in order for them to deactivate the chosen request.
+*/
+func resetHandler(c *gin.Context) {
+	var rs wrq.ResetRequest
+	if err := c.ShouldBind(&rs); err != nil {
+		c.String(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	go resetRequestToWatchers(&rs)
+
+	c.String(http.StatusOK, "ok")
 }
 
 /*
@@ -79,8 +101,12 @@ func requestHandler(c *gin.Context) {
 	Request for resource allocation in every runtime
 	that the certain docker container is found.
 */
-func requestResourceAllocationFromWatchers(req wrq.Request) {
-	//log.Println("Starting processing request from goroutine!")
+func requestResourceAllocationFromWatchers(req wrq.Request, id uint64) {
+	// TO DO: in case that similar request has already been received
+	// send immediate requests to watchers.
+	if _, ok := placement[id]; !ok {
+		placement[id] = make([]*wrc.WatcherClient, len(clients))
+	}
 	for found := false; !found; {
 		for _, c := range clients {
 			res, err := c.ExecuteRequest(&req)
@@ -88,12 +114,39 @@ func requestResourceAllocationFromWatchers(req wrq.Request) {
 				log.Println(err)
 				continue
 			}
-			//log.Printf("Watcher %v replied %v\n", c.Node, res)
+			if res {
+				placement[id] = append(placement[id], c)
+			}
 			found = found || res
 		}
 	}
 }
 
+/*
+	Reach only the neccessary cluster nodes and
+	send them a reset request for a specific serverless function.
+*/
+func resetRequestToWatchers(rs *wrq.ResetRequest) {
+	subClients, ok := placement[rs.Id]
+	if !ok {
+		log.Printf("No #%v recent request was found\n", rs.Id)
+		return
+	}
+
+	for _, c := range subClients {
+		if res, err := c.ExecuteRequest(*rs); err != nil {
+			log.Println("Problem with watcher:", err.Error())
+		} else if res != true {
+			log.Println("Problem with watcher:", c.Node)
+		}
+	}
+	delete(placement, rs.Id)
+}
+
+/*
+	Initiation function. Creates watcher clients
+	for cluster nodes.
+*/
 func connectWatchers() []*wrc.WatcherClient {
 	// TODO: Call kubernetes api for automatic
 	// node discovery.

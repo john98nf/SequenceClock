@@ -1,2 +1,6 @@
 github.com/iris-contrib/schema v0.0.6 h1:CPSBLyx2e91H2yJzPuhGuifVRnZBBJ3pCOMbOvPZaTw=
 github.com/iris-contrib/schema v0.0.6/go.mod h1:iYszG0IOsuIsfzjymw1kMzTL8YQcCWlm65f3wX8J5iA=
+github.com/john98nf/SequenceClock v0.0.0-20210819124620-01cef962e2d0 h1:qT2ivCxUyBCGFcZj82wBU/13/i652O7Mt8CbIBcJnvE=
+github.com/john98nf/SequenceClock/watcher v0.0.0-20210819124620-01cef962e2d0 h1:iOT0ur8zQh4wK9hpk/GOQZ2INThFg1u6j/I4aqbpsVM=
+github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210819124620-01cef962e2d0 h1:Wl4yoOBFkSN0JIBLiNYs/XwBPJGv1IOVrka5BmSraxM=
+github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210819124620-01cef962e2d0/go.mod h1:r25j6HuneLIZZNz7eYADGC7IXpDA/mg/rsPAvy22hi8=

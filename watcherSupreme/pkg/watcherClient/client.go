@@ -25,10 +25,10 @@ func NewWatcherClient(node string) *WatcherClient {
 	}
 }
 
-func (w *WatcherClient) ExecuteRequest(r *wrq.Request) (bool, error) {
+func (w *WatcherClient) ExecuteRequest(msg interface{}) (bool, error) {
 	var encoder = schema.NewEncoder()
 	params := url.Values{}
-	if err := encoder.Encode(r, params); err != nil {
+	if err := encoder.Encode(msg, params); err != nil {
 		return false, err
 	}
 	resp, err := http.PostForm(w.RequestsURL, params)

@@ -10,7 +10,7 @@ require (
 	github.com/gin-gonic/gin v1.7.4
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/imkira/go-interpol v1.1.0 // indirect
-	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210815144922-e8988ca08d02
+	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210819124620-01cef962e2d0
 	github.com/john98nf/SequenceClock/watcherSupreme/pkg/watcherClient v0.0.0-00010101000000-000000000000
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kataras/iris/v12 v12.1.8 // indirect
