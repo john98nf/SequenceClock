@@ -21,61 +21,66 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-)
 
-const (
-	SpeedUpRequest int = iota + 1
-	SlowDownRequest
-	ResetRequest
+	"github.com/iris-contrib/schema"
+	req "github.com/john98nf/SequenceClock/watcher/pkg/request"
 )
-
-type RequestType int
 
 type watcherClientInterface interface {
-	SpeedUpRequest(function string) error
-	SlowDownRequest(function string) error
-	ResetRequest(function string) error
-	ExecuteRequest(function string, requestType RequestType) error
+	RequestResources(r *req.Request) (*req.ResetRequest, error)
+	ResetResources(r *req.ResetRequest) error
 }
 
 type WatcherClient struct {
-	endpoint string `json:endpoint,omitempty`
+	endpoint string
 }
 
 func NewWatcherClient(host string) *WatcherClient {
 	return &WatcherClient{
-		endpoint: "http://" + host + ":32042/api/function/requestResources",
+		endpoint: "http://" + host + ":32042/api/function",
 	}
 }
 
-func (client *WatcherClient) SpeedUpRequest(function string) error {
-	return client.ExecuteRequest(function, SpeedUpRequest)
-}
-
-func (client *WatcherClient) SlowDownRequest(function string) error {
-	return client.ExecuteRequest(function, SlowDownRequest)
-}
-
-func (client *WatcherClient) ResetRequest(function string) error {
-	return client.ExecuteRequest(function, ResetRequest)
-}
-
-func (client *WatcherClient) ExecuteRequest(f string, rT int) error {
-	params := url.Values{}
-	params.Add("Function", f)
-	params.Add("Type", fmt.Sprint(rT))
-	resp, err := http.PostForm(client.endpoint, params)
+func (client *WatcherClient) RequestResources(r *req.Request) (*req.ResetRequest, error) {
+	body, err := postHTTPRequest(client.endpoint+"/requestResources", r)
 	if err != nil {
-		return err
+		return nil, err
+	} else {
+		res := req.NewResetRequest(r.Function, 0)
+		err := json.Unmarshal(body, res)
+		return res, err
+	}
+}
+
+func (client *WatcherClient) ResetResources(r *req.ResetRequest) error {
+	_, err := postHTTPRequest(client.endpoint+"/resetRequest", r)
+	return err
+}
+
+func postHTTPRequest(endpoint string, data *interface{}) ([]byte, error) {
+	var encoder = schema.NewEncoder()
+	params := url.Values{}
+	if err := encoder.Encode(data, params); err != nil {
+		return nil, err
+	}
+	resp, err := http.PostForm(endpoint, params)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
 
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 	if resp.StatusCode == 200 {
-		return nil
+		return body, nil
 	} else {
-		return fmt.Errorf("watcher responded with %v status code", resp.StatusCode)
+		return nil, fmt.Errorf("watcher responded with %v status code", resp.StatusCode)
 	}
 }
