@@ -28,8 +28,20 @@ type FunctionState struct {
 	Container     string // TO DO: Solve Openwhisk autoscaling problem
 	Quotas        int64
 	DesiredQuotas int64
-	Requests      struct {
-		Current uint64
-		Active  map[uint64]int64
+	Requests      RequestsInfo
+}
+
+type RequestsInfo struct {
+	Current uint64
+	Active  map[uint64]int64
+}
+
+func NewFunctionState(container string) *FunctionState {
+	return &FunctionState{
+		Container: container,
+		Requests: RequestsInfo{
+			Current: 0,
+			Active:  map[uint64]int64{},
+		},
 	}
 }

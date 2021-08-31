@@ -25,9 +25,16 @@ import (
 	"os"
 
 	"github.com/john98nf/SequenceClock/watcher/internal/conflicts"
+	wfs "github.com/john98nf/SequenceClock/watcher/internal/state"
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 
 	"github.com/gin-gonic/gin"
+)
+
+const (
+	Kp float64 = 1
+	Ki float64 = 1
+	Kd float64 = 1
 )
 
 var (
@@ -71,7 +78,7 @@ func resetHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := conflictResolver.RemoveRequest(rs); err != nil {
+	if err := conflictResolver.RemoveFromRegistry(rs); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -88,31 +95,24 @@ func requestHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	container, err := searchFunctionContainer(req.Function, "user-action")
-	if err != nil {
+	// TO DO: Solve Openwhisk autoscaling problem
+	if _, ok := conflictResolver.Registry[req.Function]; !ok {
+		container, err := conflictResolver.SearchRegistry(req.Function, "user-action")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		} else if container == nil {
+			c.JSON(http.StatusNotFound, gin.H{"message": "Not Found"})
+			return
+		}
+		conflictResolver.Registry[req.Function] = wfs.NewFunctionState(container.ID)
+	}
+	desiredQuotas := computePIDControllerOutput(&req)
+	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, desiredQuotas); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
-	} else if container == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No related docker container was found"})
-		return
 	}
-	// TO DO: Introduce not manual cpu-quota change
-	var reqCPUQuota int64
-	switch req.Type {
-	case wrq.SpeedUpRequest:
-		reqCPUQuota = int64(150000)
-	case wrq.SlowDownRequest:
-		reqCPUQuota = int64(50000)
-	case wrq.ResetRequest:
-		reqCPUQuota = int64(-1)
-	}
-	if err := UpdateContainerCPUQuota(container.ID, reqCPUQuota); err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Docker container updated",
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "ok"})
 }
 
 /*
@@ -139,4 +139,18 @@ func getContainer(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, cnt)
+}
+
+/*
+	PID controller function.
+*/
+func computePIDControllerOutput(req *wrq.Request) int64 {
+	// Dummy control for now
+	if req.Metrics.Slack < 0 {
+		return 150000
+	} else if req.Metrics.Slack == 0 {
+		return 100000
+	} else {
+		return 50000
+	}
 }

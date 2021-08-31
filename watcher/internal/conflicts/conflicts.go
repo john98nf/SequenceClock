@@ -54,6 +54,7 @@ const (
 
 type ConflictResolverInterface interface {
 	SearchRegistry(function, podType string) (*types.Container, error)
+	UpdateRegistry(id uint64, function string, quotas int64) error
 	RemoveFromRegistry(rs wrq.ResetRequest) error
 	ReconfigureRegistry() error
 }
@@ -76,10 +77,26 @@ func NewConflictResolver() ConflictResolver {
 }
 
 /*
+	Places new request into registry and
+	update container resources.
+*/
+func (cr *ConflictResolver) UpdateRegistry(id uint64, function string, quotas int64) error {
+	state := cr.Registry[function]
+	if quotas > state.Quotas {
+		state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
+		state.Requests.Current, state.DesiredQuotas = id, quotas
+		cr.ReconfigureRegistry()
+	} else {
+		state.Requests.Active[id] = quotas
+	}
+	return nil
+}
+
+/*
 	Removes a request from registry
 	and resets function state.
 */
-func (cr *ConflictResolver) RemoveRequest(rs wrq.ResetRequest) error {
+func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 	state, ok := cr.Registry[rs.Function]
 	if !ok {
 		return fmt.Errorf("request for '%v' function not found", rs.Function)

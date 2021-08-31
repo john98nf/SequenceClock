@@ -25,6 +25,7 @@ package request
 	and passed to watcher supreme.
 */
 type Request struct {
+	ID       uint64   `form:"id" schema:"-"`
 	Function string   `form:"function" binding:"required" schema:"function"`
 	Metrics  *Metrics `form:"metrics" binding:"required" schema:"metrics"`
 }
