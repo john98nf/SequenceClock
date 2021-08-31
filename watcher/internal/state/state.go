@@ -18,21 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-module github.com/john98nf/SequenceClock/watcher
+package state
 
-go 1.15
-
-replace github.com/john98nf/SequenceClock/watcher/internal/state => ./internal/state
-
-replace github.com/john98nf/SequenceClock/watcher/internal/conflicts => ./internal/conflicts
-
-require (
-	github.com/containerd/containerd v1.5.5 // indirect
-	github.com/docker/docker v20.10.8+incompatible
-	github.com/docker/go-connections v0.4.0 // indirect
-	github.com/gin-gonic/gin v1.7.4
-	github.com/john98nf/SequenceClock/watcher/internal/conflicts v0.0.0-00010101000000-000000000000
-	github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-00010101000000-000000000000
-	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210820205221-369ee2bc9c4d
-	google.golang.org/grpc v1.40.0 // indirect
-)
+/*
+	Struct for tracking function container/s
+	state from inside watcher.
+*/
+type FunctionState struct {
+	Container     string // TO DO: Solve Openwhisk autoscaling problem
+	Quotas        int64
+	DesiredQuotas int64
+	Requests      struct {
+		Current uint64
+		Active  map[uint64]int64
+	}
+}
