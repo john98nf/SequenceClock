@@ -18,20 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-module github.com/john98nf/SequenceClock/watcher
+module github.com/john98nf/SequenceClock/watcher/internal/conflicts
 
 go 1.15
 
-replace github.com/john98nf/SequenceClock/watcher/internal/conflicts => ./internal/conflicts
-
-replace github.com/john98nf/SequenceClock/watcher/pkg/request => ./pkg/request
-
-replace github.com/john98nf/SequenceClock/watcher/internal/state => ./internal/state
-
 require (
-	github.com/gin-gonic/gin v1.7.4
-	github.com/john98nf/SequenceClock/watcher/internal/conflicts v0.0.0-00010101000000-000000000000
-	github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-00010101000000-000000000000
+	github.com/containerd/containerd v1.5.5 // indirect
+	github.com/docker/docker v20.10.8+incompatible
+	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210820205221-369ee2bc9c4d
-	github.com/morikuni/aec v1.0.0 // indirect
+	google.golang.org/grpc v1.40.0 // indirect
 )

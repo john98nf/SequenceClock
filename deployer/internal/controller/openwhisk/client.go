@@ -47,22 +47,22 @@ func NewWatcherClient(host string) *WatcherClient {
 }
 
 func (client *WatcherClient) RequestResources(r *req.Request) (*req.ResetRequest, error) {
-	body, err := postHTTPRequest(client.endpoint+"/requestResources", r)
+	body, err := postHTTPRequest(client.endpoint+"/requestResources", *r)
 	if err != nil {
 		return nil, err
 	} else {
-		res := req.NewResetRequest(r.Function, 0)
+		res := req.NewResetRequest(0, r.Function)
 		err := json.Unmarshal(body, res)
 		return res, err
 	}
 }
 
 func (client *WatcherClient) ResetResources(r *req.ResetRequest) error {
-	_, err := postHTTPRequest(client.endpoint+"/resetRequest", r)
+	_, err := postHTTPRequest(client.endpoint+"/resetRequest", *r)
 	return err
 }
 
-func postHTTPRequest(endpoint string, data *interface{}) ([]byte, error) {
+func postHTTPRequest(endpoint string, data interface{}) ([]byte, error) {
 	var encoder = schema.NewEncoder()
 	params := url.Values{}
 	if err := encoder.Encode(data, params); err != nil {

@@ -21,41 +21,25 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	"os"
-	"regexp"
 
+	"github.com/john98nf/SequenceClock/watcher/internal/conflicts"
+	wfs "github.com/john98nf/SequenceClock/watcher/internal/state"
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 )
 
 const (
-	REG_EXP                      string = `^wskowdev-invoker-00-[0-9][0-9]-guest-%v`
-	BLKIO_WEIGHT_DEFAULT         uint16 = 0
-	CPUSET_CPUS_DEFAULT          string = ""
-	CPUSET_MEMS_DEFAULT          string = ""
-	CPU_SHARES_DEFAULT           int64  = 0 // Openwhisk default 2
-	CPU_PERIOD_DEFAULT           int64  = 0 // Openwhisk default 100000
-	CPU_QUOTA_DEFAULT            int64  = 0
-	CPU_REALTIME_PERIOD_DEFAULT  int64  = 0
-	CPU_REALTIME_RUNTIME_DEFAULT int64  = 0
-	MEMORY_DEFAULT               int64  = 0 // Openwhisk default 268435456
-	MEMORY_RESERVATION_DEFAULT   int64  = 0
-	MEMORY_SWAP_DEFAULT          int64  = 0 // Openwhisk default -1
-	KERNEL_MEMORY_DEFAULT        int64  = 0
-	NANO_CPUS_DEFAULT            int64  = 0
-	RESTART_POLICY_DEFAULT       string = "" // Openwhisk default {"Name": "no",MaximumRetryCount: 0}
+	Kp float64 = 1
+	Ki float64 = 1
+	Kd float64 = 1
 )
 
 var (
-	hostIP string = os.Getenv("HOST_IP")
-	cli    *client.Client
+	hostIP           string = os.Getenv("HOST_IP")
+	conflictResolver conflicts.ConflictResolver
 )
 
 func main() {
@@ -67,16 +51,12 @@ func main() {
 		apiWatcher.GET("/check", check)
 		// GET Request http://localhost:8080/api/function/{name}
 		apiWatcher.GET("/function/:name", getContainer)
-		// POST Request http://localhost:8080/api/function/speedUp
+		// POST Request http://localhost:8080/api/function/requestResources
 		apiWatcher.POST("/function/requestResources", requestHandler)
+		// POST ResetRequest http://localhost:8080/api/function/resetRequest
+		apiWatcher.POST("/function/resetRequest", resetHandler)
 	}
-
-	cliLocal, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		panic(err)
-	}
-	cli = cliLocal
-
+	conflictResolver = conflicts.NewConflictResolver()
 	router.Run(":8080")
 }
 
@@ -85,6 +65,24 @@ func main() {
 */
 func check(c *gin.Context) {
 	c.String(http.StatusOK, "Hello from watcher inside node %v!", hostIP)
+}
+
+/*
+	Delete previous request with specified id.
+	Docker container returns to initial state of
+	CPU_QUOTAS = -1.
+*/
+func resetHandler(c *gin.Context) {
+	var rs wrq.ResetRequest
+	if err := c.ShouldBind(&rs); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := conflictResolver.RemoveFromRegistry(rs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "ok"})
 }
 
 /*
@@ -97,33 +95,24 @@ func requestHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	container, err := searchFunctionContainer(req.Function, "user-action")
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	} else if container == nil {
-		c.String(http.StatusNotFound, "No related docker container was found")
-		return
+	// TO DO: Solve Openwhisk autoscaling problem
+	if _, ok := conflictResolver.Registry[req.Function]; !ok {
+		container, err := conflictResolver.SearchRegistry(req.Function, "user-action")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		} else if container == nil {
+			c.JSON(http.StatusNotFound, gin.H{"message": "Not Found"})
+			return
+		}
+		conflictResolver.Registry[req.Function] = wfs.NewFunctionState(container.ID)
 	}
-	// TO DO: Introduce not manual cpu-quota change
-	var reqCPUQuota int64
-	switch req.Type {
-	case wrq.SpeedUpRequest:
-		reqCPUQuota = int64(150000)
-	case wrq.SlowDownRequest:
-		reqCPUQuota = int64(50000)
-	case wrq.ResetRequest:
-		reqCPUQuota = int64(-1)
-	}
-	if err := updateContainerCPUQuota(container.ID, reqCPUQuota); err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
+	desiredQuotas := computePIDControllerOutput(&req)
+	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, desiredQuotas); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"function": req.Function,
-		"message":  "Docker container updated",
-		"node":     hostIP,
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "ok"})
 }
 
 /*
@@ -132,85 +121,36 @@ func requestHandler(c *gin.Context) {
 */
 func getContainer(c *gin.Context) {
 	fName := c.Param("Function")
-	podType := c.DefaultQuery("type", "user-action")
-	if podType != "user-action" && podType != "POD" {
-		c.String(http.StatusBadRequest, "Not supported pod type.")
+	podType := c.DefaultQuery("type", "0")
+	pdt := map[string]string{
+		"0": "user-action",
+		"1": "POD",
+	}
+	if _, ok := pdt[podType]; !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Not supported pod type."})
 		return
 	}
-	cnt, err := searchFunctionContainer(fName, podType)
+	cnt, err := conflictResolver.SearchRegistry(fName, pdt[podType])
 	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	} else if cnt == nil {
-		c.JSON(http.StatusNotFound, gin.H{})
+		c.JSON(http.StatusNotFound, gin.H{"error": "No such container"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"ID":          cnt.ID[:10],
-		"Image":       cnt.Image,
-		"Command":     cnt.Command,
-		"Created":     cnt.Created,
-		"Ports":       cnt.Ports,
-		"SizeRw":      cnt.SizeRw,
-		"SizeRootfS":  cnt.SizeRootFs,
-		"Labels":      cnt.Labels,
-		"State":       cnt.State,
-		"Status":      cnt.Status,
-		"NetworkMode": cnt.HostConfig.NetworkMode,
-		"Mount":       cnt.Mounts,
-	})
+	c.JSON(http.StatusOK, cnt)
 }
 
 /*
-	Helper function for searching docker runtime
-	for an openwhisk action container.
+	PID controller function.
 */
-func searchFunctionContainer(name, podType string) (*types.Container, error) {
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
-	if err != nil {
-		return nil, err
+func computePIDControllerOutput(req *wrq.Request) int64 {
+	// Dummy control for now
+	if req.Metrics.Slack < 0 {
+		return 150000
+	} else if req.Metrics.Slack == 0 {
+		return 100000
+	} else {
+		return 50000
 	}
-	exp := fmt.Sprintf(REG_EXP, name)
-	for _, cnt := range containers {
-		if l, ok := cnt.Labels["io.kubernetes.container.name"]; ok && l == podType {
-			if matched, err := regexp.MatchString(exp, cnt.Labels["io.kubernetes.pod.name"]); matched {
-				return &cnt, nil
-			} else if err != nil {
-				return nil, err
-			}
-		}
-	}
-	return nil, nil
-}
-
-/*
-	Helper function for updating CPU quotas
-	of specified docker container.
-*/
-func updateContainerCPUQuota(containerID string, cpuQuota int64) error {
-	updateConfig := containertypes.UpdateConfig{
-		Resources: containertypes.Resources{
-			BlkioWeight:        BLKIO_WEIGHT_DEFAULT,
-			CpusetCpus:         CPUSET_CPUS_DEFAULT,
-			CpusetMems:         CPUSET_MEMS_DEFAULT,
-			CPUShares:          CPU_SHARES_DEFAULT,
-			Memory:             MEMORY_DEFAULT,
-			MemoryReservation:  MEMORY_RESERVATION_DEFAULT,
-			MemorySwap:         MEMORY_SWAP_DEFAULT,
-			KernelMemory:       KERNEL_MEMORY_DEFAULT,
-			CPUPeriod:          CPU_PERIOD_DEFAULT,
-			CPUQuota:           cpuQuota,
-			CPURealtimePeriod:  CPU_REALTIME_PERIOD_DEFAULT,
-			CPURealtimeRuntime: CPU_REALTIME_RUNTIME_DEFAULT,
-			NanoCPUs:           NANO_CPUS_DEFAULT,
-		},
-		RestartPolicy: containertypes.RestartPolicy{
-			Name:              "no",
-			MaximumRetryCount: 0,
-		},
-	}
-	if _, err := cli.ContainerUpdate(context.Background(), containerID, updateConfig); err != nil {
-		return err
-	}
-	return nil
 }

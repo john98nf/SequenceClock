@@ -18,20 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-module github.com/john98nf/SequenceClock/watcher
+package state
 
-go 1.15
+/*
+	Struct for tracking function container/s
+	state from inside watcher.
+*/
+type FunctionState struct {
+	Container     string // TO DO: Solve Openwhisk autoscaling problem
+	Quotas        int64
+	DesiredQuotas int64
+	Requests      RequestsInfo
+}
 
-replace github.com/john98nf/SequenceClock/watcher/internal/conflicts => ./internal/conflicts
+type RequestsInfo struct {
+	Current uint64
+	Active  map[uint64]int64
+}
 
-replace github.com/john98nf/SequenceClock/watcher/pkg/request => ./pkg/request
-
-replace github.com/john98nf/SequenceClock/watcher/internal/state => ./internal/state
-
-require (
-	github.com/gin-gonic/gin v1.7.4
-	github.com/john98nf/SequenceClock/watcher/internal/conflicts v0.0.0-00010101000000-000000000000
-	github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-00010101000000-000000000000
-	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210820205221-369ee2bc9c4d
-	github.com/morikuni/aec v1.0.0 // indirect
-)
+func NewFunctionState(container string) *FunctionState {
+	return &FunctionState{
+		Container: container,
+		Requests: RequestsInfo{
+			Current: 0,
+			Active:  map[uint64]int64{},
+		},
+	}
+}
