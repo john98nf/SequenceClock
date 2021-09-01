@@ -73,8 +73,9 @@ func requestHandler(c *gin.Context) {
 		return
 	}
 	reset := wrq.NewResetRequest(counterID, req.Function)
+	req.ID = reset.ID
 	counterID++
-	go requestResourceAllocationFromWatchers(req, reset.ID)
+	go requestResourceAllocationFromWatchers(req)
 
 	c.JSON(http.StatusOK, *reset)
 }
@@ -101,11 +102,11 @@ func resetHandler(c *gin.Context) {
 	Request for resource allocation in every runtime
 	that the certain docker container is found.
 */
-func requestResourceAllocationFromWatchers(req wrq.Request, id uint64) {
+func requestResourceAllocationFromWatchers(req wrq.Request) {
 	// TO DO: in case that similar request has already been received
 	// send immediate requests to watchers.
-	if _, ok := placement[id]; !ok {
-		placement[id] = make([]*wrc.WatcherClient, len(clients))
+	if _, ok := placement[req.ID]; !ok {
+		placement[req.ID] = make([]*wrc.WatcherClient, len(clients))
 	}
 	for found := false; !found; {
 		for _, c := range clients {
@@ -115,7 +116,7 @@ func requestResourceAllocationFromWatchers(req wrq.Request, id uint64) {
 				continue
 			}
 			if res {
-				placement[id] = append(placement[id], c)
+				placement[req.ID] = append(placement[req.ID], c)
 			}
 			found = found || res
 		}
