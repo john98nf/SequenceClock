@@ -49,7 +49,8 @@ const (
 	KERNEL_MEMORY_DEFAULT        int64  = 0
 	NANO_CPUS_DEFAULT            int64  = 0
 	RESTART_POLICY_DEFAULT       string = "" // Openwhisk default {"Name": "no",MaximumRetryCount: 0}
-	CORES                        int    = 4
+	CORES                        int64  = 4
+	CPU_PERIOD_OPENWHISK_DEFAULT int64  = 100000
 )
 
 type ConflictResolverInterface interface {
@@ -144,19 +145,18 @@ func nextRequest(state *wfs.FunctionState) (uint64, int64) {
 	using the formula λ*DesiredCPUQuotas
 	where λ = CPU_Cores / sum of DesiredCPUQuotas.
 */
-func (cr *ConflictResolver) ReconfigureRegistry() error {
+func (cr *ConflictResolver) ReconfigureRegistry() {
 	var sum int64
 	for _, s := range cr.Registry {
 		sum += s.DesiredQuotas
 	}
-	lamda := int64(float64(CORES) / float64(sum) * 100)
+	lamda := float64(CORES*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
 	for f, s := range cr.Registry {
-		s.Quotas = lamda * s.DesiredQuotas
+		s.Quotas = int64(lamda * float64(s.DesiredQuotas))
 		if err := cr.updateContainerCPUQuota(cr.Registry[f].Container, s.Quotas); err != nil {
 			log.Println(err.Error())
 		}
 	}
-	return nil
 }
 
 /*
