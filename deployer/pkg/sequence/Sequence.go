@@ -6,11 +6,11 @@ import (
 )
 
 type Sequence struct {
-	Name                   string          `form:"name" binding:"required"`
-	Framework              string          `form:"framework" binding:"required"`
-	AlgorithmType          string          `form:"algorithm" binding:"required"`
-	Functions              []string        `form:"functions" binding:"required"`
-	ProfiledExecutionTimes []time.Duration `form:"elapsedTimes" binding:"required"`
+	Name                   string          `form:"name" binding:"required" schema:"name,required"`
+	Framework              string          `form:"framework" binding:"required" schema:"framework,required"`
+	AlgorithmType          string          `form:"algorithm" binding:"required" schema:"algorithm,required"`
+	Functions              []string        `form:"functions" binding:"required" schema:"functions,required"`
+	ProfiledExecutionTimes []time.Duration `form:"elapsedTimes" binding:"required" schema:"-"`
 }
 
 /*
