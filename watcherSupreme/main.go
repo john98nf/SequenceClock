@@ -74,7 +74,7 @@ func requestHandler(c *gin.Context) {
 	}
 	reset := wrq.NewResetRequest(counterID, req.Function)
 	counterID++
-	go requestResourceAllocationFromWatchers(req, reset.Id)
+	go requestResourceAllocationFromWatchers(req, reset.ID)
 
 	c.JSON(http.StatusOK, *reset)
 }
@@ -127,9 +127,9 @@ func requestResourceAllocationFromWatchers(req wrq.Request, id uint64) {
 	send them a reset request for a specific serverless function.
 */
 func resetRequestToWatchers(rs *wrq.ResetRequest) {
-	subClients, ok := placement[rs.Id]
+	subClients, ok := placement[rs.ID]
 	if !ok {
-		log.Printf("No #%v recent request was found\n", rs.Id)
+		log.Printf("No #%v recent request was found\n", rs.ID)
 		return
 	}
 
@@ -140,7 +140,7 @@ func resetRequestToWatchers(rs *wrq.ResetRequest) {
 			log.Println("Problem with watcher:", c.Node)
 		}
 	}
-	delete(placement, rs.Id)
+	delete(placement, rs.ID)
 }
 
 /*
