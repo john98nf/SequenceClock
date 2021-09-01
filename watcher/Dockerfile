@@ -26,6 +26,8 @@ WORKDIR /app
 
 COPY go.mod go.sum ./
 COPY pkg/request/go.mod ./pkg/request/go.mod
+COPY internal/conflicts/go.mod internal/conflicts/go.sum ./internal/conflicts/
+COPY internal/state/go.mod ./internal/state/go.mod
 
 RUN go mod download
 
