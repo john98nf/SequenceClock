@@ -95,6 +95,7 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		tStart = time.Now()
 		log.Printf("Slack: %v\n", r.Slack)
 		r.Function = functionsList[i]
+		r.ProfiledExecutionTime = profiledExecutionTimes[i]
 		reset, err := watcherClient.RequestResources(r)
 		if err != nil {
 			log.Printf("Error from watcher client: %v\n", err.Error())

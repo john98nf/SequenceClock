@@ -26,6 +26,7 @@ require (
 	github.com/containerd/containerd v1.5.5 // indirect
 	github.com/docker/docker v20.10.8+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-20210901212831-7d78eb166378
 	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210820205221-369ee2bc9c4d
 	google.golang.org/grpc v1.40.0 // indirect
 )

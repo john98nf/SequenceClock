@@ -31,7 +31,7 @@ replace github.com/john98nf/SequenceClock/watcher/internal/state => ./internal/s
 require (
 	github.com/gin-gonic/gin v1.7.4
 	github.com/john98nf/SequenceClock/watcher/internal/conflicts v0.0.0-00010101000000-000000000000
-	github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-00010101000000-000000000000
+	github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-20210901212831-7d78eb166378
 	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210820205221-369ee2bc9c4d
 	github.com/morikuni/aec v1.0.0 // indirect
 )

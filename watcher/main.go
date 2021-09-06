@@ -32,9 +32,9 @@ import (
 )
 
 const (
-	Kp float64 = 1
-	Ki float64 = 1
-	Kd float64 = 1
+	Kp int64 = 10
+	Ki int64 = 1
+	Kd int64 = 0
 )
 
 var (
@@ -108,7 +108,7 @@ func requestHandler(c *gin.Context) {
 		conflictResolver.Registry[req.Function] = wfs.NewFunctionState(container.ID)
 	}
 	desiredQuotas := computePIDControllerOutput(&req)
-	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, desiredQuotas); err != nil {
+	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, retainCPUThreshold(desiredQuotas+100000)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -143,14 +143,24 @@ func getContainer(c *gin.Context) {
 
 /*
 	PID controller function.
+	Input: slack in nanoseconds
+	Output: Δcpu_quotas in miliseconds
 */
 func computePIDControllerOutput(req *wrq.Request) int64 {
-	// Dummy control for now
-	if req.Metrics.Slack < 0 {
-		return 150000
-	} else if req.Metrics.Slack == 0 {
-		return 100000
+	return mseconds(Kp*req.Metrics.Slack +
+		Ki*req.Metrics.SumOfSlack +
+		Kd*req.Metrics.PreviousSlack)
+}
+
+func retainCPUThreshold(quotas int64) int64 {
+	threshold := conflicts.CPU_PERIOD_OPENWHISK_DEFAULT * conflicts.CORES
+	if quotas > threshold {
+		return threshold
 	} else {
-		return 50000
+		return quotas
 	}
+}
+
+func mseconds(x int64) int64 {
+	return int64(float64(x) * 0.0000001)
 }
