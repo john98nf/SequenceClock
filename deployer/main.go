@@ -21,6 +21,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -62,11 +63,11 @@ func check(c *gin.Context) {
 func create(c *gin.Context) {
 	var seq sequence.Sequence
 	if err := c.ShouldBind(&seq); err != nil {
-		c.String(http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	if err := seq.Validate(); err != nil {
-		c.String(http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	wskConfig := &whisk.Config{
@@ -77,27 +78,27 @@ func create(c *gin.Context) {
 	}
 	client, errCl := whisk.NewClient(http.DefaultClient, wskConfig)
 	if errCl != nil {
-		c.String(http.StatusInternalServerError, errCl.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": errCl.Error()})
 		return
 	}
 
 	template := tpl.NewTemplate(&seq, client)
 	if err := template.Create(); err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := template.Deploy(); err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := template.Delete(); err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.String(http.StatusOK, "Sequence '%v' created.", seq.Name)
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("sequence '%v' created.", seq.Name)})
 }
 
 /*
@@ -106,7 +107,7 @@ func create(c *gin.Context) {
 func delete(c *gin.Context) {
 	sequence := c.Query("name")
 	if sequence == "" {
-		c.String(http.StatusBadRequest, "Please provide a sequence name for deletion.")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no sequence name provided"})
 		return
 	}
 
@@ -118,12 +119,12 @@ func delete(c *gin.Context) {
 	}
 	client, errCl := whisk.NewClient(http.DefaultClient, wskConfig)
 	if errCl != nil {
-		c.String(http.StatusInternalServerError, errCl.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": errCl.Error()})
 		return
 	}
 	actions, _, errL := client.Actions.List("", nil)
 	if errL != nil {
-		c.String(http.StatusInternalServerError, errL.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": errL.Error()})
 		return
 	}
 
@@ -137,11 +138,11 @@ func delete(c *gin.Context) {
 	}(actions, sequence) {
 		if _, err := client.Actions.Delete(sequence); err != nil {
 			log.Println(err)
-			c.String(http.StatusInternalServerError, err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		} else {
-			c.String(http.StatusOK, "Sequence '%v' deleted.", sequence)
+			c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("sequence '%v' deleted", sequence)})
 		}
 	} else {
-		c.String(http.StatusForbidden, "No '%v' sequence detected.", sequence)
+		c.JSON(http.StatusForbidden, gin.H{"error": fmt.Sprint("no '%v' sequence detected", sequence)})
 	}
 }
