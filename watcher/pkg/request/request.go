@@ -44,10 +44,10 @@ type ResetRequest struct {
 	to watchers.
 */
 type Metrics struct {
-	Slack                 int64 `form:"slack" binding:"required" schema:"slack"`                 // Used by P controller
-	SumOfSlack            int64 `form:"sumOfSlack" binding:"required" schema:"sumfSlack"`        // Used by I controller
-	PreviousSlack         int64 `form:"previousSlack" binding:"required" schema:"previousSlack"` // Used by D controller
-	ProfiledExecutionTime int64 `form:"profiledExecutionTime" binding:"required" schema:"profiledExecutionTime"`
+	Slack                 int64 `form:"slack" binding:"required"`         // Used by P controller
+	SumOfSlack            int64 `form:"sumOfSlack" binding:"required"`    // Used by I controller
+	PreviousSlack         int64 `form:"previousSlack" binding:"required"` // Used by D controller
+	ProfiledExecutionTime int64 `form:"profiledExecutionTime" binding:"required"`
 }
 
 /*

@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
-	"time"
 
 	sq "github.com/john98nf/SequenceClock/deployer/pkg/sequence"
 )
@@ -46,7 +46,7 @@ const (
 `
 	VARIABLES string = `var (
 		functionList = [...]string{"%v"}
-		profiledExecutionTimes = [...]time.Duration{%v}
+		profiledExecutionTimes = [...]int64{%v}
 )
 `
 )
@@ -146,10 +146,10 @@ func addConfig(w *zip.Writer, seq sq.Sequence) error {
 	return nil
 }
 
-func stringify(l []time.Duration) []string {
+func stringify(l []int64) []string {
 	s := make([]string, len(l))
 	for i, elem := range l {
-		s[i] = fmt.Sprint(elem.Nanoseconds())
+		s[i] = strconv.FormatInt(elem, 10)
 	}
 	return s
 }
