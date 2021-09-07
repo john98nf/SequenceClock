@@ -370,7 +370,11 @@ github.com/j-keck/arping v0.0.0-20160618110441-2cf9dc699c56/go.mod h1:ymszkNOg6t
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/jmespath/go-jmespath v0.0.0-20160803190731-bd40a432e4c7/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/john98nf/SequenceClock v0.0.0-20210820205221-369ee2bc9c4d h1:7hxDVZfjoraOBmmno9NSpHNG//aa7qQ+fVw5x+95emw=
+github.com/john98nf/SequenceClock v0.0.0-20210901212831-7d78eb166378 h1:5QbeaRlIakjBndZXZqQRORzgD5MAm1FIxc8GGL78IvM=
 github.com/john98nf/SequenceClock/watcher v0.0.0-20210820205221-369ee2bc9c4d h1:l1U1PjRYGkvcOrxJ6mlikn0Ck5ZZHLEtNb13u5ev/X4=
+github.com/john98nf/SequenceClock/watcher v0.0.0-20210901212831-7d78eb166378 h1:Ks1xNDKJdUMuaiBKZ5HHuNtFTScobBVQzMmhrmOS2NQ=
+github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-20210901212831-7d78eb166378 h1:jib/ihhzrkmKbtIYmQREsPNLOsWcKTlVRCjH8JkyZ9I=
+github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-20210901212831-7d78eb166378/go.mod h1:veCQOhE15QIxh2MppBU13bkmoDx7RkFSCHKEWB/92P4=
 github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210820205221-369ee2bc9c4d h1:w2rMFxeDG5p8cvnQtZfDn3S65RkvlR5dQsWwt092f0o=
 github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210820205221-369ee2bc9c4d/go.mod h1:r25j6HuneLIZZNz7eYADGC7IXpDA/mg/rsPAvy22hi8=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=

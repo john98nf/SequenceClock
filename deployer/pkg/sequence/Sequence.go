@@ -2,15 +2,14 @@ package sequence
 
 import (
 	"fmt"
-	"time"
 )
 
 type Sequence struct {
-	Name                   string          `form:"name" binding:"required" schema:"name,required"`
-	Framework              string          `form:"framework" binding:"required" schema:"framework,required"`
-	AlgorithmType          string          `form:"algorithm" binding:"required" schema:"algorithm,required"`
-	Functions              []string        `form:"functions" binding:"required" schema:"functions,required"`
-	ProfiledExecutionTimes []time.Duration `form:"elapsedTimes" binding:"required" schema:"-"`
+	Name                   string   `form:"name" binding:"required"`
+	Framework              string   `form:"framework" binding:"required"`
+	AlgorithmType          string   `form:"algorithm" binding:"required"`
+	Functions              []string `form:"functions" binding:"required"`
+	ProfiledExecutionTimes []int64  `form:"profiledExecutionTimes" binding:"required"`
 }
 
 /*
@@ -21,7 +20,7 @@ func NewSequence(
 	framework,
 	algorithmType string,
 	functions []string,
-	profiledExecutionTimes []time.Duration) (*Sequence, error) {
+	profiledExecutionTimes []int64) (*Sequence, error) {
 	return &Sequence{
 		Name:                   name,
 		Framework:              framework,
