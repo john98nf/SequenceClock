@@ -21,6 +21,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 
@@ -55,6 +56,8 @@ func main() {
 		apiWatcher.POST("/function/requestResources", requestHandler)
 		// POST ResetRequest http://localhost:8080/api/function/resetRequest
 		apiWatcher.POST("/function/resetRequest", resetHandler)
+		// GET ResetRequest http://localhost:8080/api/registry
+		apiWatcher.POST("/registry", getRegistry)
 	}
 	conflictResolver = conflicts.NewConflictResolver()
 	router.Run(":8080")
@@ -116,6 +119,19 @@ func requestHandler(c *gin.Context) {
 }
 
 /*
+	Development call.
+	Returns conflict resolver registry.
+*/
+func getRegistry(c *gin.Context) {
+	data, err := json.Marshal(conflictResolver.Registry)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+/*
 	Get information for function related
 	container. Development oriented api call.
 */
@@ -147,8 +163,8 @@ func getContainer(c *gin.Context) {
 	Output: Δcpu_quotas in miliseconds
 */
 func computePIDControllerOutput(req *wrq.Request) int64 {
-	return mseconds(Kp*req.Metrics.Slack +
-		Ki*req.Metrics.SumOfSlack +
+	return -1 * mseconds(Kp*req.Metrics.Slack+
+		Ki*req.Metrics.SumOfSlack+
 		Kd*req.Metrics.PreviousSlack)
 }
 
