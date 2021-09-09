@@ -33,9 +33,6 @@ import (
 
 const (
 	PACKAGE_DEFINITION string = `package main
-	
-	import "time"
-
 `
 	CONFIG_CONTROLLER_FILE string = "config.go"
 	ZIP_ARCHIVE_PATH       string = "%v/%v.zip"

@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/apache/openwhisk-client-go/whisk"
-	req "github.com/john98nf/SequenceClock/watcher/pkg/request"
 )
 
 type controller (func(map[string]interface{}) map[string]interface{})
@@ -86,16 +85,16 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		tStart  time.Time
 		tEnd    time.Time
 		elapsed time.Duration
-		r       req.Request = req.NewRequest("", &req.Metrics{})
+		r       *Request = NewRequest("", &Metrics{})
 	)
 
 	watcherClient := NewWatcherClient(KUBE_MAIN_IP)
 	aRes := obj
 	for i, f := range functionList {
 		tStart = time.Now()
-		log.Printf("Slack: %v\n", r.Slack)
-		r.Function = functionsList[i]
-		r.ProfiledExecutionTime = profiledExecutionTimes[i]
+		log.Printf("Slack: %v\n", r.Metrics.Slack)
+		r.Function = functionList[i]
+		r.Metrics.ProfiledExecutionTime = profiledExecutionTimes[i]
 		reset, err := watcherClient.RequestResources(r)
 		if err != nil {
 			log.Printf("Error from watcher client: %v\n", err.Error())
@@ -105,16 +104,16 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
 
 		log.Println("Sending reset request")
-		if err := watcherClient.ResetRequest(reset); err != nil {
+		if err := watcherClient.ResetResources(reset); err != nil {
 			log.Printf("Error from watcher client: %v\n", err.Error())
 		}
 		tEnd = time.Now()
 		elapsed = tEnd.Sub(tStart)
 		log.Printf("Elapsed time: %v\n", elapsed)
-		r.PreviousSlack = r.Slack
-		r.Slack += profiledExecutionTimes[i] - int64(elapsed)
-		r.SumOfSlack += r.Slack
+		r.Metrics.PreviousSlack = r.Metrics.Slack
+		r.Metrics.Slack += profiledExecutionTimes[i] - int64(elapsed)
+		r.Metrics.SumOfSlack += r.Metrics.Slack
 	}
-	log.Printf("Last slack %v\n", r.Slack)
+	log.Printf("Last slack %v\n", r.Metrics.Slack)
 	return aRes
 }
