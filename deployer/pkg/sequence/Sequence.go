@@ -5,11 +5,11 @@ import (
 )
 
 type Sequence struct {
-	Name                   string   `form:"name" binding:"required"`
-	Framework              string   `form:"framework" binding:"required"`
-	AlgorithmType          string   `form:"algorithm" binding:"required"`
-	Functions              []string `form:"functions" binding:"required"`
-	ProfiledExecutionTimes []int64  `form:"profiledExecutionTimes" binding:"required"`
+	Name                   string   `form:"name" binding:"required" schema:"name"`
+	Framework              string   `form:"framework" binding:"required" schema:"framework"`
+	AlgorithmType          string   `form:"algorithm" binding:"required" schema:"algorithm"`
+	Functions              []string `form:"functions" binding:"required" schema:"functions"`
+	ProfiledExecutionTimes []int64  `form:"profiledExecutionTimes" binding:"required" schema:"profiledExecutionTimes"`
 }
 
 /*

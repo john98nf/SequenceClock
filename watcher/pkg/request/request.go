@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package request
+package main
 
 /*
 	Initial Request struct made by sequence controller
@@ -35,7 +35,7 @@ type Request struct {
 	by the watcher supreme.
 */
 type ResetRequest struct {
-	ID       uint64 `form:"id" binding:"required" schema:"id"`
+	ID       uint64 `form:"id" binding:"exists" schema:"id"`
 	Function string `form:"function" binding:"required" schema:"function"`
 }
 
@@ -44,10 +44,10 @@ type ResetRequest struct {
 	to watchers.
 */
 type Metrics struct {
-	Slack                 int64 `form:"slack" binding:"required"`         // Used by P controller
-	SumOfSlack            int64 `form:"sumOfSlack" binding:"required"`    // Used by I controller
-	PreviousSlack         int64 `form:"previousSlack" binding:"required"` // Used by D controller
-	ProfiledExecutionTime int64 `form:"profiledExecutionTime" binding:"required"`
+	Slack                 int64 `form:"slack" binding:"exists" schema:"slack"`                 // Used by P controller
+	SumOfSlack            int64 `form:"sumOfSlack" binding:"exists" schema:"sumOfSlack"`       // Used by I controller
+	PreviousSlack         int64 `form:"previousSlack" binding:"exists" schema:"previousSlack"` // Used by D controller
+	ProfiledExecutionTime int64 `form:"profiledExecutionTime" binding:"exists" schema:"profiledExecutionTime"`
 }
 
 /*
