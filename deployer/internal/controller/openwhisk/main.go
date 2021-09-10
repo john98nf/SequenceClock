@@ -93,6 +93,7 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 	for i, f := range functionList {
 		tStart = time.Now()
 		log.Printf("Slack: %v\n", r.Metrics.Slack)
+		log.Printf("Sum Of slack: %v\n", r.Metrics.SumOfSlack)
 		r.Function = functionList[i]
 		reset, err := watcherClient.RequestResources(r)
 		if err != nil {

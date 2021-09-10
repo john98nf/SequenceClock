@@ -21,7 +21,7 @@
 package main
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -57,7 +57,7 @@ func main() {
 		// POST ResetRequest http://localhost:8080/api/function/resetRequest
 		apiWatcher.POST("/function/resetRequest", resetHandler)
 		// GET ResetRequest http://localhost:8080/api/registry
-		apiWatcher.POST("/registry", getRegistry)
+		apiWatcher.GET("/registry", getRegistry)
 	}
 	conflictResolver = conflicts.NewConflictResolver()
 	router.Run(":8080")
@@ -123,12 +123,11 @@ func requestHandler(c *gin.Context) {
 	Returns conflict resolver registry.
 */
 func getRegistry(c *gin.Context) {
-	data, err := json.Marshal(conflictResolver.Registry)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	res := make(gin.H)
+	for k, s := range conflictResolver.Registry {
+		res[k] = *s
 	}
-	c.JSON(http.StatusOK, data)
+	c.JSON(http.StatusOK, gin.H{"registry": res})
 }
 
 /*
@@ -178,5 +177,6 @@ func retainCPUThreshold(quotas int64) int64 {
 }
 
 func mseconds(x int64) int64 {
-	return int64(float64(x) * 0.0000001)
+	fmt.Println("PID controller output:", int64(float64(x)*0.000001))
+	return int64(float64(x) * 0.000001)
 }

@@ -137,7 +137,7 @@ func resetRequestToWatchers(rs wrq.ResetRequest) {
 	for _, c := range subClients {
 		if res, err := c.ExecuteRequest(rs); err != nil {
 			log.Println("Problem with watcher:", err.Error())
-		} else if res != true {
+		} else if !res {
 			log.Println("Problem with watcher:", c.Node)
 		}
 	}

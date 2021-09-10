@@ -83,8 +83,10 @@ func NewConflictResolver() ConflictResolver {
 */
 func (cr *ConflictResolver) UpdateRegistry(id uint64, function string, quotas int64) error {
 	state := cr.Registry[function]
-	if quotas > state.Quotas {
-		state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
+	if quotas > state.DesiredQuotas {
+		if state.DesiredQuotas != 0 {
+			state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
+		}
 		state.Requests.Current, state.DesiredQuotas = id, quotas
 		cr.ReconfigureRegistry()
 	} else {
@@ -150,9 +152,14 @@ func (cr *ConflictResolver) ReconfigureRegistry() {
 	for _, s := range cr.Registry {
 		sum += s.DesiredQuotas
 	}
-	lamda := float64(CORES*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
+	// TO DO: Check when you can ignore lambda correction
+	lambda := float64(CORES*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
 	for f, s := range cr.Registry {
-		s.Quotas = int64(lamda * float64(s.DesiredQuotas))
+		if lambda < 1.0 {
+			s.Quotas = int64(lambda * float64(s.DesiredQuotas))
+		} else {
+			s.Quotas = s.DesiredQuotas
+		}
 		if err := cr.updateContainerCPUQuota(cr.Registry[f].Container, s.Quotas); err != nil {
 			log.Println(err.Error())
 		}
