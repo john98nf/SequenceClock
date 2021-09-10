@@ -21,7 +21,7 @@
 package main
 
 import (
-	"fmt"
+	"math"
 	"net/http"
 	"os"
 
@@ -177,6 +177,5 @@ func retainCPUThreshold(quotas int64) int64 {
 }
 
 func mseconds(x int64) int64 {
-	fmt.Println("PID controller output:", int64(float64(x)*0.000001))
-	return int64(float64(x) * 0.000001)
+	return int64(math.Round(float64(x) * 0.000001))
 }
