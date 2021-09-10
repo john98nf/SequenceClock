@@ -26,7 +26,6 @@ replace github.com/john98nf/SequenceClock/watcherSupreme/pkg/watcherClient => ./
 
 require (
 	github.com/gin-gonic/gin v1.7.4
-	github.com/iris-contrib/schema v0.0.6 // indirect
-	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210901182550-aa02b7af975d
+	github.com/john98nf/SequenceClock/watcher/pkg/request v0.0.0-20210910091808-7dd4271b2430
 	github.com/john98nf/SequenceClock/watcherSupreme/pkg/watcherClient v0.0.0-00010101000000-000000000000
 )

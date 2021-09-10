@@ -57,7 +57,7 @@ func (client *WatcherClient) RequestResources(r *Request) (*ResetRequest, error)
 }
 
 func (client *WatcherClient) ResetResources(r *ResetRequest) error {
-	_, err := postHTTPRequest(client.endpoint+"/resetRequest", *r)
+	_, err := postHTTPRequest(client.endpoint+"/resetResources", *r)
 	return err
 }
 
@@ -80,6 +80,6 @@ func postHTTPRequest(endpoint string, data interface{}) ([]byte, error) {
 	if resp.StatusCode == 200 {
 		return body, nil
 	} else {
-		return nil, fmt.Errorf("watcher responded with %v status code", resp.StatusCode)
+		return nil, fmt.Errorf(string(body))
 	}
 }

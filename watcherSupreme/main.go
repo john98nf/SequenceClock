@@ -92,7 +92,7 @@ func resetHandler(c *gin.Context) {
 		return
 	}
 
-	go resetRequestToWatchers(&rs)
+	go resetRequestToWatchers(rs)
 
 	c.String(http.StatusOK, "ok")
 }
@@ -127,7 +127,7 @@ func requestResourceAllocationFromWatchers(req wrq.Request) {
 	Reach only the neccessary cluster nodes and
 	send them a reset request for a specific serverless function.
 */
-func resetRequestToWatchers(rs *wrq.ResetRequest) {
+func resetRequestToWatchers(rs wrq.ResetRequest) {
 	subClients, ok := placement[rs.ID]
 	if !ok {
 		log.Printf("No #%v recent request was found\n", rs.ID)
@@ -135,7 +135,7 @@ func resetRequestToWatchers(rs *wrq.ResetRequest) {
 	}
 
 	for _, c := range subClients {
-		if res, err := c.ExecuteRequest(*rs); err != nil {
+		if res, err := c.ExecuteRequest(rs); err != nil {
 			log.Println("Problem with watcher:", err.Error())
 		} else if res != true {
 			log.Println("Problem with watcher:", c.Node)

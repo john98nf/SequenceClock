@@ -25,7 +25,7 @@ package main
 	and passed to watcher supreme.
 */
 type Request struct {
-	ID       uint64   `form:"id" schema:"-"`
+	ID       uint64   `form:"id" binding:"omitempty" schema:"-"`
 	Function string   `form:"function" binding:"required" schema:"function"`
 	Metrics  *Metrics `form:"metrics" binding:"required" schema:"metrics"`
 }
@@ -35,7 +35,7 @@ type Request struct {
 	by the watcher supreme.
 */
 type ResetRequest struct {
-	ID       uint64 `form:"id" binding:"required" schema:"id"`
+	ID       uint64 `form:"id" schema:"id"`
 	Function string `form:"function" binding:"required" schema:"function"`
 }
 
@@ -44,10 +44,10 @@ type ResetRequest struct {
 	to watchers.
 */
 type Metrics struct {
-	Slack                 int64 `form:"slack" binding:"required"`         // Used by P controller
-	SumOfSlack            int64 `form:"sumOfSlack" binding:"required"`    // Used by I controller
-	PreviousSlack         int64 `form:"previousSlack" binding:"required"` // Used by D controller
-	ProfiledExecutionTime int64 `form:"profiledExecutionTime" binding:"required"`
+	Slack                 int64 `form:"slack" schema:"slack"`                 // Used by P controller
+	SumOfSlack            int64 `form:"sumOfSlack" schema:"sumOfSlack"`       // Used by I controller
+	PreviousSlack         int64 `form:"previousSlack" schema:"previousSlack"` // Used by D controller
+	ProfiledExecutionTime int64 `form:"profiledExecutionTime" schema:"profiledExecutionTime"`
 }
 
 /*

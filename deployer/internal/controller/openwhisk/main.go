@@ -94,10 +94,10 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		tStart = time.Now()
 		log.Printf("Slack: %v\n", r.Metrics.Slack)
 		r.Function = functionList[i]
-		r.Metrics.ProfiledExecutionTime = profiledExecutionTimes[i]
 		reset, err := watcherClient.RequestResources(r)
 		if err != nil {
-			log.Printf("Error from watcher client: %v\n", err.Error())
+			log.Printf("Request Error: %v\n", err.Error())
+			panic(err)
 		}
 
 		log.Printf("Invoking function-%v %v\n", i, f)
@@ -105,7 +105,8 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 
 		log.Println("Sending reset request")
 		if err := watcherClient.ResetResources(reset); err != nil {
-			log.Printf("Error from watcher client: %v\n", err.Error())
+			log.Printf("Reset Error: %v\n", err.Error())
+			panic(err)
 		}
 		tEnd = time.Now()
 		elapsed = tEnd.Sub(tStart)
@@ -114,6 +115,6 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		r.Metrics.Slack += profiledExecutionTimes[i] - int64(elapsed)
 		r.Metrics.SumOfSlack += r.Metrics.Slack
 	}
-	log.Printf("Last slack %v\n", r.Metrics.Slack)
+	log.Printf("Last slack: %v\n", r.Metrics.Slack)
 	return aRes
 }
