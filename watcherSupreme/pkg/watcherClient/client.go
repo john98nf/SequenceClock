@@ -30,28 +30,37 @@ import (
 )
 
 type WatcherInterface interface {
-	ExecuteRequest(r *wrq.Request) (bool, error)
+	SendRequest(r *wrq.Request) (bool, error)
+	SendResetRequest(r wrq.ResetRequest) (bool, error)
 }
 
 type WatcherClient struct {
-	Node        string
-	RequestsURL string
+	Node    string
+	BaseURL string
 }
 
 func NewWatcherClient(node string) *WatcherClient {
 	return &WatcherClient{
-		Node:        node,
-		RequestsURL: "http://" + node + ":8080/api/function/requestResources",
+		Node:    node,
+		BaseURL: "http://" + node + ":8080/api/function",
 	}
 }
 
-func (w *WatcherClient) ExecuteRequest(msg interface{}) (bool, error) {
+func (w *WatcherClient) SendRequest(r *wrq.Request) (bool, error) {
+	return w.executeRequest(w.BaseURL+"/requestResources", *r)
+}
+
+func (w *WatcherClient) SendResetRequest(r *wrq.ResetRequest) (bool, error) {
+	return w.executeRequest(w.BaseURL+"/resetRequest", *r)
+}
+
+func (w *WatcherClient) executeRequest(endpoint string, msg interface{}) (bool, error) {
 	var encoder = schema.NewEncoder()
 	params := url.Values{}
 	if err := encoder.Encode(msg, params); err != nil {
 		return false, err
 	}
-	resp, err := http.PostForm(w.RequestsURL, params)
+	resp, err := http.PostForm(endpoint, params)
 	if err != nil {
 		return false, err
 	}

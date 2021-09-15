@@ -106,11 +106,11 @@ func requestResourceAllocationFromWatchers(req wrq.Request) {
 	// TO DO: in case that similar request has already been received
 	// send immediate requests to watchers.
 	if _, ok := placement[req.ID]; !ok {
-		placement[req.ID] = make([]*wrc.WatcherClient, len(clients))
+		placement[req.ID] = make([]*wrc.WatcherClient, 0)
 	}
 	for found := false; !found; {
 		for _, c := range clients {
-			res, err := c.ExecuteRequest(&req)
+			res, err := c.SendRequest(&req)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -135,7 +135,7 @@ func resetRequestToWatchers(rs wrq.ResetRequest) {
 	}
 
 	for _, c := range subClients {
-		if res, err := c.ExecuteRequest(rs); err != nil {
+		if res, err := c.SendResetRequest(&rs); err != nil {
 			log.Println("Problem with watcher:", err.Error())
 		} else if !res {
 			log.Println("Problem with watcher:", c.Node)

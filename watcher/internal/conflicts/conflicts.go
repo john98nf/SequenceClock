@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	REG_EXP                      string = `^wskowdev-invoker-00-[0-9][0-9]-guest-%v`
+	REG_EXP                      string = `^wskowdev-invoker-[0-9]*-[0-9]*-guest-%v`
 	BLKIO_WEIGHT_DEFAULT         uint16 = 0
 	CPUSET_CPUS_DEFAULT          string = ""
 	CPUSET_MEMS_DEFAULT          string = ""
@@ -113,6 +113,7 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 			delete(cr.Registry, rs.Function)
 		} else {
 			state.Requests.Current, state.DesiredQuotas = nextRequest(state)
+			delete(state.Requests.Active, state.Requests.Current)
 		}
 		cr.ReconfigureRegistry()
 	} else {
