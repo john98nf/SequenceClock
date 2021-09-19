@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"sync"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -54,13 +55,16 @@ const (
 )
 
 type ConflictResolverInterface interface {
-	SearchRegistry(function, podType string) (*types.Container, error)
+	SearchDockerRuntime(function, podType string) (*types.Container, error)
+	RegistryContains(function string) bool
+	InsertToRegistry()
 	UpdateRegistry(id uint64, function string, quotas int64) error
 	RemoveFromRegistry(rs wrq.ResetRequest) error
 	ReconfigureRegistry() error
 }
 
 type ConflictResolver struct {
+	mutex        sync.RWMutex
 	Registry     map[string]*wfs.FunctionState
 	DockerClient *client.Client
 }
@@ -72,17 +76,34 @@ func NewConflictResolver() ConflictResolver {
 	}
 	registry := make(map[string]*wfs.FunctionState)
 	return ConflictResolver{
+		mutex:        sync.RWMutex{},
 		Registry:     registry,
 		DockerClient: cli,
 	}
 }
 
 /*
+	Searches Registry data stucture
+	for existing function state.
+*/
+func (cr *ConflictResolver) RegistryContains(function string) bool {
+	cr.mutex.RLock()
+	_, ok := cr.Registry[function]
+	cr.mutex.RUnlock()
+	return ok
+}
+
+/*
 	Places new request into registry and
 	update container resources.
 */
-func (cr *ConflictResolver) UpdateRegistry(id uint64, function string, quotas int64) error {
-	state := cr.Registry[function]
+func (cr *ConflictResolver) UpdateRegistry(id uint64, function, containerID string, quotas int64) error {
+	cr.mutex.Lock()
+	state, ok := cr.Registry[function]
+	if !ok {
+		state = wfs.NewFunctionState(containerID)
+		cr.Registry[function] = state
+	}
 	if quotas > state.DesiredQuotas {
 		if state.DesiredQuotas != 0 {
 			state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
@@ -92,6 +113,7 @@ func (cr *ConflictResolver) UpdateRegistry(id uint64, function string, quotas in
 	} else {
 		state.Requests.Active[id] = quotas
 	}
+	cr.mutex.Unlock()
 	return nil
 }
 
@@ -100,6 +122,7 @@ func (cr *ConflictResolver) UpdateRegistry(id uint64, function string, quotas in
 	and resets function state.
 */
 func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
+	cr.mutex.Lock()
 	state, ok := cr.Registry[rs.Function]
 	if !ok {
 		return fmt.Errorf("request for '%v' function not found", rs.Function)
@@ -122,6 +145,7 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 		}
 		delete(state.Requests.Active, rs.ID)
 	}
+	cr.mutex.Unlock()
 	return nil
 }
 
@@ -171,7 +195,7 @@ func (cr *ConflictResolver) ReconfigureRegistry() {
 	Helper method for searching docker runtime
 	for an openwhisk action container.
 */
-func (cr *ConflictResolver) SearchRegistry(function, podType string) (*types.Container, error) {
+func (cr *ConflictResolver) SearchDockerRuntime(function, podType string) (*types.Container, error) {
 	containers, err := cr.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err

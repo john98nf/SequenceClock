@@ -21,12 +21,13 @@
 package main
 
 import (
+	"log"
 	"math"
 	"net/http"
 	"os"
 
+	dt "github.com/docker/docker/api/types"
 	"github.com/john98nf/SequenceClock/watcher/internal/conflicts"
-	wfs "github.com/john98nf/SequenceClock/watcher/internal/state"
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 
 	"github.com/gin-gonic/gin"
@@ -44,7 +45,7 @@ var (
 )
 
 func main() {
-	router := gin.Default()
+	router := gin.New()
 
 	apiWatcher := router.Group("/api")
 	{
@@ -76,6 +77,7 @@ func check(c *gin.Context) {
 	CPU_QUOTAS = -1.
 */
 func resetHandler(c *gin.Context) {
+	log.Println("Reset Handler - Start")
 	var rs wrq.ResetRequest
 	if err := c.ShouldBind(&rs); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -86,6 +88,7 @@ func resetHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	log.Println("Reset Handler - End")
 }
 
 /*
@@ -93,29 +96,35 @@ func resetHandler(c *gin.Context) {
 	docker container resources.
 */
 func requestHandler(c *gin.Context) {
+	log.Println("Request Handler - Start")
 	var req wrq.Request
 	if err := c.ShouldBind(&req); err != nil {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
 	// TO DO: Solve Openwhisk autoscaling problem
-	if _, ok := conflictResolver.Registry[req.Function]; !ok {
-		container, err := conflictResolver.SearchRegistry(req.Function, "user-action")
+	var (
+		container *dt.Container
+		err       error
+	)
+	if !conflictResolver.RegistryContains(req.Function) {
+		container, err = conflictResolver.SearchDockerRuntime(req.Function, "user-action")
 		if err != nil {
+			log.Println("Search registry returned an error")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		} else if container == nil {
 			c.JSON(http.StatusNotFound, gin.H{"message": "Not Found"})
 			return
 		}
-		conflictResolver.Registry[req.Function] = wfs.NewFunctionState(container.ID)
 	}
 	desiredQuotas := computePIDControllerOutput(&req)
-	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, retainCPUThreshold(desiredQuotas+100000)); err != nil {
+	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, container.ID, retainCPUThreshold(desiredQuotas+100000)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	log.Println("Request Handler - End")
 }
 
 /*
@@ -145,7 +154,7 @@ func getContainer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Not supported pod type."})
 		return
 	}
-	cnt, err := conflictResolver.SearchRegistry(fName, pdt[podType])
+	cnt, err := conflictResolver.SearchDockerRuntime(fName, pdt[podType])
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
