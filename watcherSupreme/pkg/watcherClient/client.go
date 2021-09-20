@@ -21,6 +21,8 @@
 package client
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -69,6 +71,10 @@ func (w *WatcherClient) executeRequest(endpoint string, msg interface{}) (bool, 
 	if resp.StatusCode == 200 {
 		return true, nil
 	} else {
-		return false, nil
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return false, err
+		}
+		return false, fmt.Errorf(string(body))
 	}
 }

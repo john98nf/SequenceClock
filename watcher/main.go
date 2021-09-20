@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"os"
 
-	dt "github.com/docker/docker/api/types"
 	"github.com/john98nf/SequenceClock/watcher/internal/conflicts"
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 
@@ -103,12 +102,9 @@ func requestHandler(c *gin.Context) {
 		return
 	}
 	// TO DO: Solve Openwhisk autoscaling problem
-	var (
-		container *dt.Container
-		err       error
-	)
+	var containerID string
 	if !conflictResolver.RegistryContains(req.Function) {
-		container, err = conflictResolver.SearchDockerRuntime(req.Function, "user-action")
+		container, err := conflictResolver.SearchDockerRuntime(req.Function, "user-action")
 		if err != nil {
 			log.Println("Search registry returned an error")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -117,9 +113,10 @@ func requestHandler(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"message": "Not Found"})
 			return
 		}
+		containerID = container.ID
 	}
 	desiredQuotas := computePIDControllerOutput(&req)
-	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, container.ID, retainCPUThreshold(desiredQuotas+100000)); err != nil {
+	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, containerID, retainCPUThreshold(desiredQuotas+100000)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

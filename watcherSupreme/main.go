@@ -23,6 +23,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"sync"
+	"time"
 
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 	wrc "github.com/john98nf/SequenceClock/watcherSupreme/pkg/watcherClient"
@@ -31,13 +33,15 @@ import (
 )
 
 var (
-	clients   []*wrc.WatcherClient
-	placement map[uint64][]*wrc.WatcherClient
-	counterID uint64
+	clients         []*wrc.WatcherClient
+	counterID       uint64
+	mutex           = sync.RWMutex{}
+	requestCatalog  = map[uint64]*wrc.WatcherClient{}
+	functionCatalog = map[string]*wrc.WatcherClient{}
 )
 
 func main() {
-	router := gin.Default()
+	router := gin.New()
 
 	apiWatcher := router.Group("/api")
 	{
@@ -49,7 +53,6 @@ func main() {
 		apiWatcher.POST("/function/resetResources", resetHandler)
 	}
 
-	placement = make(map[uint64][]*wrc.WatcherClient)
 	clients = connectWatchers()
 	router.Run(":8080")
 }
@@ -72,9 +75,12 @@ func requestHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
+	log.Println("Request for ", req.Function)
+	mutex.Lock()
 	reset := wrq.NewResetRequest(counterID, req.Function)
 	req.ID = reset.ID
 	counterID++
+	mutex.Unlock()
 	go requestResourceAllocationFromWatchers(req)
 
 	c.JSON(http.StatusOK, *reset)
@@ -91,7 +97,7 @@ func resetHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-
+	log.Println("Reset for", rs.Function, rs.ID)
 	go resetRequestToWatchers(rs)
 
 	c.String(http.StatusOK, "ok")
@@ -103,45 +109,70 @@ func resetHandler(c *gin.Context) {
 	that the certain docker container is found.
 */
 func requestResourceAllocationFromWatchers(req wrq.Request) {
-	// TO DO: in case that similar request has already been received
-	// send immediate requests to watchers.
-	if _, ok := placement[req.ID]; !ok {
-		placement[req.ID] = make([]*wrc.WatcherClient, 0)
+	log.Println("Searching catalog...")
+	mutex.RLock()
+	c, ok := functionCatalog[req.Function]
+	mutex.RUnlock()
+	if ok {
+		found, err := c.SendRequest(&req)
+		if err != nil {
+			log.Println(err)
+		} else if found {
+			log.Printf("Found function %v from catalog\n", req.Function)
+			mutex.Lock()
+			requestCatalog[req.ID] = c
+			mutex.Unlock()
+			return
+		}
 	}
-	for found := false; !found; {
+	log.Println("Trying to ping all nodes")
+Loop:
+	for {
 		for _, c := range clients {
-			res, err := c.SendRequest(&req)
-			if err != nil {
+			if res, err := c.SendRequest(&req); err != nil {
 				log.Println(err)
 				continue
+			} else if res {
+				log.Printf("Found inside node %v\n", c.Node)
+				mutex.Lock()
+				requestCatalog[req.ID] = c
+				functionCatalog[req.Function] = c
+				mutex.Unlock()
+				break Loop
 			}
-			if res {
-				placement[req.ID] = append(placement[req.ID], c)
-			}
-			found = found || res
 		}
+		time.Sleep(150 * time.Millisecond)
 	}
 }
 
 /*
-	Reach only the neccessary cluster nodes and
-	send them a reset request for a specific serverless function.
+	Reach only the neccessary cluster node and
+	send a reset request for a specific serverless function.
 */
 func resetRequestToWatchers(rs wrq.ResetRequest) {
-	subClients, ok := placement[rs.ID]
-	if !ok {
-		log.Printf("No #%v recent request was found\n", rs.ID)
-		return
-	}
-
-	for _, c := range subClients {
-		if res, err := c.SendResetRequest(&rs); err != nil {
-			log.Println("Problem with watcher:", err.Error())
-		} else if !res {
-			log.Println("Problem with watcher:", c.Node)
+	log.Println("Reading catalog")
+	var (
+		ok     bool
+		client *wrc.WatcherClient
+	)
+	for {
+		mutex.RLock()
+		client, ok = requestCatalog[rs.ID]
+		mutex.RUnlock()
+		if ok {
+			break
 		}
+		time.Sleep(5 * time.Millisecond)
 	}
-	delete(placement, rs.ID)
+	log.Println("Sending reset request...", rs.Function)
+	if res, err := client.SendResetRequest(&rs); err != nil {
+		log.Println("Problem with watcher:", err.Error())
+	} else if !res {
+		log.Println("Problem with watcher:", client.Node)
+	}
+	mutex.Lock()
+	delete(requestCatalog, rs.ID)
+	mutex.Unlock()
 }
 
 /*
