@@ -25,6 +25,8 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/exec"
+	"strconv"
 
 	"github.com/john98nf/SequenceClock/watcher/internal/conflicts"
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
@@ -41,10 +43,11 @@ const (
 var (
 	hostIP           string = os.Getenv("HOST_IP")
 	conflictResolver conflicts.ConflictResolver
+	cores            int64
 )
 
 func main() {
-	router := gin.New()
+	router := gin.Default()
 
 	apiWatcher := router.Group("/api")
 	{
@@ -59,7 +62,9 @@ func main() {
 		// GET ResetRequest http://localhost:8080/api/registry
 		apiWatcher.GET("/registry", getRegistry)
 	}
-	conflictResolver = conflicts.NewConflictResolver()
+	cores = findNodeCores()
+	log.Printf("Number of available cores: %d\n", cores)
+	conflictResolver = conflicts.NewConflictResolver(cores)
 	router.Run(":8080")
 }
 
@@ -174,7 +179,7 @@ func computePIDControllerOutput(req *wrq.Request) int64 {
 }
 
 func retainCPUThreshold(quotas int64) int64 {
-	threshold := conflicts.CPU_PERIOD_OPENWHISK_DEFAULT * conflicts.CORES
+	threshold := conflicts.CPU_PERIOD_OPENWHISK_DEFAULT * cores
 	if quotas > threshold {
 		return threshold
 	} else {
@@ -184,4 +189,16 @@ func retainCPUThreshold(quotas int64) int64 {
 
 func mseconds(x int64) int64 {
 	return int64(math.Round(float64(x) * 0.000001))
+}
+
+func findNodeCores() int64 {
+	stdout, err := exec.Command("bash", "-c", "lscpu | awk '/^CPU\\(s\\):/ {print $2}'").Output()
+	if err != nil {
+		panic(err)
+	}
+	n, err := strconv.ParseInt(string(stdout[:len(stdout)-1]), 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return n
 }

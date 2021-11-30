@@ -50,7 +50,6 @@ const (
 	KERNEL_MEMORY_DEFAULT        int64  = 0
 	NANO_CPUS_DEFAULT            int64  = 0
 	RESTART_POLICY_DEFAULT       string = "" // Openwhisk default {"Name": "no",MaximumRetryCount: 0}
-	CORES                        int64  = 4
 	CPU_PERIOD_OPENWHISK_DEFAULT int64  = 100000
 )
 
@@ -67,9 +66,10 @@ type ConflictResolver struct {
 	mutex        sync.RWMutex
 	Registry     map[string]*wfs.FunctionState
 	DockerClient *client.Client
+	Cores        int64
 }
 
-func NewConflictResolver() ConflictResolver {
+func NewConflictResolver(cores int64) ConflictResolver {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)
@@ -79,6 +79,7 @@ func NewConflictResolver() ConflictResolver {
 		mutex:        sync.RWMutex{},
 		Registry:     registry,
 		DockerClient: cli,
+		Cores:        cores,
 	}
 }
 
@@ -178,7 +179,7 @@ func (cr *ConflictResolver) ReconfigureRegistry() {
 		sum += s.DesiredQuotas
 	}
 	// TO DO: Check when you can ignore lambda correction
-	lambda := float64(CORES*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
+	lambda := float64(cr.Cores*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
 	for f, s := range cr.Registry {
 		if lambda < 1.0 {
 			s.Quotas = int64(lambda * float64(s.DesiredQuotas))
