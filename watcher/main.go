@@ -21,12 +21,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"net/http"
 	"os"
-	"os/exec"
-	"strconv"
 
 	"github.com/john98nf/SequenceClock/watcher/internal/conflicts"
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
@@ -192,13 +191,15 @@ func mseconds(x int64) int64 {
 }
 
 func findNodeCores() int64 {
-	stdout, err := exec.Command("bash", "-c", "lscpu | awk '/^CPU\\(s\\):/ {print $2}'").Output()
-	if err != nil {
-		panic(err)
+	var cores_info map[string]int64 = map[string]int64{
+		"192.168.1.243": 4,
+		"192.168.1.244": 4,
+		"192.168.1.245": 4,
+		"192.168.1.246": 2,
 	}
-	n, err := strconv.ParseInt(string(stdout[:len(stdout)-1]), 10, 64)
-	if err != nil {
-		panic(err)
+	n, ok := cores_info[hostIP]
+	if !ok {
+		panic(fmt.Errorf("unkown number of cores for host with IP %s", hostIP))
 	}
 	return n
 }
