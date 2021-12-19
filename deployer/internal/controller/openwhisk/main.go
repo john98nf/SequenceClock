@@ -27,7 +27,8 @@
 package main
 
 import (
-	"log"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -65,10 +66,21 @@ func Main(obj map[string]interface{}) map[string]interface{} {
 	Used for benchmarking purposes and referrence point.
 */
 func dummyControl(obj map[string]interface{}) map[string]interface{} {
+	var (
+		id      string
+		status  string
+		latency int64
+		fullRes map[string]interface{}
+		err     error
+	)
 	aRes := obj
 	for i, f := range functionList {
-		log.Printf("Invoking function-%v %v\n", i, f)
-		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
+		fullRes, _, err = client.Actions.Invoke(f, aRes, true, false)
+		if err != nil {
+			os.Exit(-1)
+		}
+		id, status, latency, aRes = extractMetrics(fullRes)
+		fmt.Println(i, id, latency, status)
 	}
 	return aRes
 }
@@ -85,6 +97,10 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 		tStart  time.Time
 		tEnd    time.Time
 		elapsed time.Duration
+		id      string
+		status  string
+		latency int64
+		fullRes map[string]interface{}
 		r       *Request = NewRequest("", &Metrics{})
 	)
 
@@ -92,30 +108,44 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 	aRes := obj
 	for i, f := range functionList {
 		tStart = time.Now()
-		log.Printf("Slack: %v\n", r.Metrics.Slack)
-		log.Printf("Sum Of slack: %v\n", r.Metrics.SumOfSlack)
 		r.Function = functionList[i]
 		reset, err := watcherClient.RequestResources(r)
 		if err != nil {
-			log.Printf("Request Error: %v\n", err.Error())
 			panic(err)
 		}
 
-		log.Printf("Invoking function-%v %v\n", i, f)
-		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
+		fullRes, _, err = client.Actions.Invoke(f, aRes, true, false)
 
-		log.Println("Sending reset request")
 		if err := watcherClient.ResetResources(reset); err != nil {
-			log.Printf("Reset Error: %v\n", err.Error())
 			panic(err)
 		}
+		if err != nil {
+			os.Exit(-1)
+		}
+		id, status, latency, aRes = extractMetrics(fullRes)
+		fmt.Println(i, id, latency, status, r.Metrics.Slack)
+		if status != "success" {
+			os.Exit(-1)
+		}
+
 		tEnd = time.Now()
 		elapsed = tEnd.Sub(tStart)
-		log.Printf("Elapsed time: %v\n", elapsed)
 		r.Metrics.PreviousSlack = r.Metrics.Slack
 		r.Metrics.Slack += profiledExecutionTimes[i] - int64(elapsed)
 		r.Metrics.SumOfSlack += r.Metrics.Slack
 	}
-	log.Printf("Last slack: %v\n", r.Metrics.Slack)
 	return aRes
+}
+
+/*
+	Helper function for extracting information
+	from OpenWhisk API output.
+*/
+func extractMetrics(r map[string]interface{}) (string, string, int64, map[string]interface{}) {
+	end, _ := r["end"].(json.Number).Int64()
+	start, _ := r["start"].(json.Number).Int64()
+	return r["activationId"].(string),
+		r["response"].(map[string]interface{})["status"].(string),
+		(end - start),
+		r["response"].(map[string]interface{})["result"].(map[string]interface{})
 }
