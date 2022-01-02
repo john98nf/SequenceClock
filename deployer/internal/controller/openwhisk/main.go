@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/apache/openwhisk-client-go/whisk"
@@ -67,20 +68,24 @@ func Main(obj map[string]interface{}) map[string]interface{} {
 */
 func dummyControl(obj map[string]interface{}) map[string]interface{} {
 	var (
-		id      string
-		status  string
-		latency int64
-		fullRes map[string]interface{}
-		err     error
+		id         string
+		status     string
+		latency    int64
+		fullRes    map[string]interface{}
+		err        error
+		errMetrics error
 	)
 	aRes := obj
 	for i, f := range functionList {
 		fullRes, _, err = client.Actions.Invoke(f, aRes, true, false)
 		if err != nil {
-			os.Exit(-1)
+			panic(err)
 		}
-		id, status, latency, aRes = extractMetrics(fullRes)
-		fmt.Println(i, id, latency, status)
+		id, status, latency, aRes, errMetrics = extractMetrics(fullRes)
+		if errMetrics != nil {
+			panic(errMetrics.Error())
+		}
+		fmt.Println(i, id, latency, strings.Replace(status, " ", "", -1))
 	}
 	return aRes
 }
@@ -94,14 +99,15 @@ func dummyControl(obj map[string]interface{}) map[string]interface{} {
 */
 func greedyControl(obj map[string]interface{}) map[string]interface{} {
 	var (
-		tStart  time.Time
-		tEnd    time.Time
-		elapsed time.Duration
-		id      string
-		status  string
-		latency int64
-		fullRes map[string]interface{}
-		r       *Request = NewRequest("", &Metrics{})
+		tStart     time.Time
+		tEnd       time.Time
+		elapsed    time.Duration
+		id         string
+		status     string
+		latency    int64
+		fullRes    map[string]interface{}
+		r          *Request = NewRequest("", &Metrics{})
+		errMetrics error
 	)
 
 	watcherClient := NewWatcherClient(KUBE_MAIN_IP)
@@ -120,12 +126,15 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 			panic(err)
 		}
 		if err != nil {
-			os.Exit(-1)
+			panic(err)
 		}
-		id, status, latency, aRes = extractMetrics(fullRes)
-		fmt.Println(i, id, latency, status, r.Metrics.Slack)
+		id, status, latency, aRes, errMetrics = extractMetrics(fullRes)
+		if errMetrics != nil {
+			panic(errMetrics)
+		}
+		fmt.Println(i, id, latency, strings.Replace(status, " ", "", -1), r.Metrics.Slack)
 		if status != "success" {
-			os.Exit(-1)
+			panic(fmt.Errorf("invocation terminated with status: %s", status))
 		}
 
 		tEnd = time.Now()
@@ -141,11 +150,16 @@ func greedyControl(obj map[string]interface{}) map[string]interface{} {
 	Helper function for extracting information
 	from OpenWhisk API output.
 */
-func extractMetrics(r map[string]interface{}) (string, string, int64, map[string]interface{}) {
-	end, _ := r["end"].(json.Number).Int64()
-	start, _ := r["start"].(json.Number).Int64()
-	return r["activationId"].(string),
-		r["response"].(map[string]interface{})["status"].(string),
-		(end - start),
-		r["response"].(map[string]interface{})["result"].(map[string]interface{})
+func extractMetrics(r map[string]interface{}) (string, string, int64, map[string]interface{}, error) {
+	end, err1 := r["end"].(json.Number).Int64()
+	start, err2 := r["start"].(json.Number).Int64()
+	id, ok3 := r["activationId"].(string)
+	status, ok4 := r["response"].(map[string]interface{})["status"].(string)
+	res, ok5 := r["response"].(map[string]interface{})["result"].(map[string]interface{})
+
+	if err1 != nil || err2 != nil || !ok3 || !ok4 || !ok5 {
+		return id, status, (end - start), res, fmt.Errorf("problem with type assertion (end, start, activationId, status, result): (%v, %v, %v, %v, %v)", err1.Error(), err2.Error(), ok3, ok4, ok5)
+	}
+	return id, status, (end - start), res, nil
+
 }
