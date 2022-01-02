@@ -20,9 +20,6 @@
 
 replicaCount: 1
 
-cluster:
-  ignoreMasterTaint: false
-
 autoscaling:
   enabled: false
   minReplicas: 1
