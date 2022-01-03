@@ -89,7 +89,7 @@ func (tpl *Template) Create() error {
 */
 func (tpl *Template) Deploy() error {
 	timeout := 300000
-	concurrency := 999999
+	concurrency := 1
 	newAction := whisk.Action{
 		Name:        tpl.Sequence.Name,
 		Namespace:   os.Getenv("NAMESPACE"),
