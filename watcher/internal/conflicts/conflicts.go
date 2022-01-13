@@ -51,6 +51,7 @@ const (
 	NANO_CPUS_DEFAULT            int64  = 0
 	RESTART_POLICY_DEFAULT       string = "" // Openwhisk default {"Name": "no",MaximumRetryCount: 0}
 	CPU_PERIOD_OPENWHISK_DEFAULT int64  = 100000
+	CPU_QUOTAS_LOWER_BOUND       int64  = 1000
 )
 
 type ConflictResolverInterface interface {

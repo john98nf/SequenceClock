@@ -181,6 +181,8 @@ func retainCPUThreshold(quotas int64) int64 {
 	threshold := conflicts.CPU_PERIOD_OPENWHISK_DEFAULT * cores
 	if quotas > threshold {
 		return threshold
+	} else if quotas <= conflicts.CPU_QUOTAS_LOWER_BOUND {
+		return conflicts.CPU_QUOTAS_LOWER_BOUND
 	} else {
 		return quotas
 	}
