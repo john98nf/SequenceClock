@@ -64,10 +64,11 @@ type ConflictResolverInterface interface {
 }
 
 type ConflictResolver struct {
-	mutex        sync.RWMutex
-	Registry     map[string]*wfs.FunctionState
-	DockerClient *client.Client
-	Cores        int64
+	mutex          sync.RWMutex
+	Registry       map[string]*wfs.FunctionState
+	DockerClient   *client.Client
+	Cores          int64
+	lambdaPrevious float64
 }
 
 func NewConflictResolver(cores int64) ConflictResolver {
@@ -103,16 +104,22 @@ func (cr *ConflictResolver) UpdateRegistry(id uint64, function, containerID stri
 	cr.mutex.Lock()
 	state, ok := cr.Registry[function]
 	if !ok {
+		log.Println("Creating new function state")
 		state = wfs.NewFunctionState(containerID)
 		cr.Registry[function] = state
 	}
 	if quotas > state.DesiredQuotas {
+		log.Println("Incoming request has higher priority than current")
 		if state.DesiredQuotas != 0 {
+			log.Println("Adding old request into Active map")
 			state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
 		}
+		quotas_old := state.DesiredQuotas
 		state.Requests.Current, state.DesiredQuotas = id, quotas
-		cr.ReconfigureRegistry()
+		state.Quotas = quotas
+		cr.ReconfigureRegistry(containerID, quotas, quotas_old)
 	} else {
+		log.Printf("Adding request into Active map: %v, %v\n", id, quotas)
 		state.Requests.Active[id] = quotas
 	}
 	cr.mutex.Unlock()
@@ -127,24 +134,40 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 	cr.mutex.Lock()
 	state, ok := cr.Registry[rs.Function]
 	if !ok {
+		cr.mutex.Unlock()
 		return fmt.Errorf("request for '%v' function not found", rs.Function)
 	}
 	if state.Requests.Current == rs.ID {
+		log.Println("Incoming reset request is about current request")
 		if len(state.Requests.Active) == 0 {
+			log.Println("No requests inside Active, Deleting function key")
 			// TO DO: Solve Openwhisk autoscaling problem
 			if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
+				cr.mutex.Unlock()
 				return err
 			}
 			delete(cr.Registry, rs.Function)
+			cr.ReconfigureRegistry(state.Container, 0, state.DesiredQuotas)
 		} else {
+			log.Println("There are Active requests - Need to find next")
+			quotas_old := state.DesiredQuotas
 			state.Requests.Current, state.DesiredQuotas = nextRequest(state)
+			state.Quotas = state.DesiredQuotas
+			log.Printf("New current request: %v,%v\n", state.Requests.Current, state.DesiredQuotas)
+			log.Printf("Deleting it from Active map")
 			delete(state.Requests.Active, state.Requests.Current)
+			cr.ReconfigureRegistry(
+				state.Container,
+				state.DesiredQuotas,
+				quotas_old,
+			)
 		}
-		cr.ReconfigureRegistry()
 	} else {
 		if _, ok := state.Requests.Active[rs.ID]; !ok {
+			cr.mutex.Unlock()
 			return fmt.Errorf("request %v not found", rs.ID)
 		}
+		log.Println("Incoming reset request is about a request inside Active map: Deleting it")
 		delete(state.Requests.Active, rs.ID)
 	}
 	cr.mutex.Unlock()
@@ -174,23 +197,40 @@ func nextRequest(state *wfs.FunctionState) (uint64, int64) {
 	using the formula λ*DesiredCPUQuotas
 	where λ = CPU_Cores / sum of DesiredCPUQuotas.
 */
-func (cr *ConflictResolver) ReconfigureRegistry() {
-	var sum int64
-	for _, s := range cr.Registry {
-		sum += s.DesiredQuotas
-	}
-	// TO DO: Check when you can ignore lambda correction
-	lambda := float64(cr.Cores*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
-	for f, s := range cr.Registry {
-		if lambda < 1.0 {
-			s.Quotas = int64(lambda * float64(s.DesiredQuotas))
-		} else {
-			s.Quotas = s.DesiredQuotas
+func (cr *ConflictResolver) ReconfigureRegistry(container string, quotas_new int64, quotas_old int64) {
+	var (
+		sum    int64
+		lambda float64
+	)
+	if cr.lambdaPrevious == 0 {
+		for _, s := range cr.Registry {
+			sum += s.DesiredQuotas
 		}
-		if err := cr.updateContainerCPUQuota(cr.Registry[f].Container, s.Quotas); err != nil {
-			log.Println(err.Error())
+		lambda = float64(cr.Cores*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
+	} else {
+		nt := float64(cr.Cores * CPU_PERIOD_OPENWHISK_DEFAULT)
+		lambda = nt / (nt/cr.lambdaPrevious + float64(quotas_new-quotas_old))
+	}
+
+	if (cr.lambdaPrevious == 1) && (lambda == 1) {
+		if quotas_new != 0 {
+			if err := cr.updateContainerCPUQuota(container, quotas_new); err != nil {
+				log.Println(err.Error())
+			}
+		}
+	} else {
+		for f, s := range cr.Registry {
+			if lambda < 1.0 {
+				s.Quotas = int64(lambda * float64(s.DesiredQuotas))
+			} else {
+				s.Quotas = s.DesiredQuotas
+			}
+			if err := cr.updateContainerCPUQuota(cr.Registry[f].Container, s.Quotas); err != nil {
+				log.Println(err.Error())
+			}
 		}
 	}
+	cr.lambdaPrevious = lambda
 }
 
 /*

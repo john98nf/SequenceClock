@@ -46,7 +46,7 @@ var (
 )
 
 func main() {
-	router := gin.Default()
+	router := gin.New()
 
 	apiWatcher := router.Group("/api")
 	{
@@ -88,6 +88,7 @@ func resetHandler(c *gin.Context) {
 	}
 	if err := conflictResolver.RemoveFromRegistry(rs); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Reset Handler - End")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
@@ -108,6 +109,7 @@ func requestHandler(c *gin.Context) {
 	// TO DO: Solve Openwhisk autoscaling problem
 	var containerID string
 	if !conflictResolver.RegistryContains(req.Function) {
+		log.Println("Searching container runtime for the specified container")
 		container, err := conflictResolver.SearchDockerRuntime(req.Function, "user-action")
 		if err != nil {
 			log.Println("Search registry returned an error")
@@ -118,6 +120,7 @@ func requestHandler(c *gin.Context) {
 			return
 		}
 		containerID = container.ID
+		log.Printf("Container ID: %s\n", containerID)
 	}
 	desiredQuotas := computePIDControllerOutput(&req)
 	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, containerID, retainCPUThreshold(desiredQuotas+100000)); err != nil {
