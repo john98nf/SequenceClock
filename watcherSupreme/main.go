@@ -21,6 +21,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -51,6 +52,8 @@ func main() {
 		apiWatcher.POST("/function/requestResources", requestHandler)
 		// POST Request http://localhost:8080/api/function/resetResources
 		apiWatcher.POST("/function/resetResources", resetHandler)
+		// GET Request http://localhost:8080/api/catalogs
+		apiWatcher.GET("/catalogs", getCatalogs)
 	}
 
 	clients = connectWatchers()
@@ -75,7 +78,6 @@ func requestHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	log.Println("Request for ", req.Function)
 	mutex.Lock()
 	reset := wrq.NewResetRequest(counterID, req.Function)
 	req.ID = reset.ID
@@ -97,7 +99,6 @@ func resetHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	log.Println("Reset for", rs.Function, rs.ID)
 	go resetRequestToWatchers(rs)
 
 	c.String(http.StatusOK, "ok")
@@ -109,39 +110,31 @@ func resetHandler(c *gin.Context) {
 	that the certain docker container is found.
 */
 func requestResourceAllocationFromWatchers(req wrq.Request) {
-	log.Println("Searching catalog...")
 	mutex.RLock()
 	c, ok := functionCatalog[req.Function]
 	mutex.RUnlock()
 	if ok {
 		found, err := c.SendRequest(&req)
-		if err != nil {
+		if err != nil && err != fmt.Errorf("{\"message\":\"Not Found\"}") {
 			log.Println(err)
 		} else if found {
-			log.Printf("Found function %v from catalog\n", req.Function)
 			mutex.Lock()
 			requestCatalog[req.ID] = c
 			mutex.Unlock()
 			return
 		}
 	}
-	log.Println("Trying to ping all nodes")
-Loop:
-	for {
-		for _, c := range clients {
-			if res, err := c.SendRequest(&req); err != nil {
-				log.Println(err)
-				continue
-			} else if res {
-				log.Printf("Found inside node %v\n", c.Node)
-				mutex.Lock()
-				requestCatalog[req.ID] = c
-				functionCatalog[req.Function] = c
-				mutex.Unlock()
-				break Loop
-			}
+	for _, c := range clients {
+		if res, err := c.SendRequest(&req); err != nil {
+			log.Println(err)
+			continue
+		} else if res {
+			mutex.Lock()
+			requestCatalog[req.ID] = c
+			functionCatalog[req.Function] = c
+			mutex.Unlock()
+			return
 		}
-		time.Sleep(150 * time.Millisecond)
 	}
 }
 
@@ -150,7 +143,6 @@ Loop:
 	send a reset request for a specific serverless function.
 */
 func resetRequestToWatchers(rs wrq.ResetRequest) {
-	log.Println("Reading catalog")
 	var (
 		ok     bool
 		client *wrc.WatcherClient
@@ -164,7 +156,6 @@ func resetRequestToWatchers(rs wrq.ResetRequest) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	log.Println("Sending reset request...", rs.Function)
 	if res, err := client.SendResetRequest(&rs); err != nil {
 		log.Println("Problem with watcher:", err.Error())
 	} else if !res {
@@ -173,6 +164,24 @@ func resetRequestToWatchers(rs wrq.ResetRequest) {
 	mutex.Lock()
 	delete(requestCatalog, rs.ID)
 	mutex.Unlock()
+}
+
+/*
+	Get information for catalog data structures.
+	Development oriented api call.
+*/
+func getCatalogs(c *gin.Context) {
+	req := make(map[uint64]interface{})
+	fc := make(gin.H)
+	mutex.RLock()
+	for k, c := range requestCatalog {
+		req[k] = c.Node
+	}
+	for k, c := range functionCatalog {
+		fc[k] = c.Node
+	}
+	mutex.RUnlock()
+	c.JSON(http.StatusOK, gin.H{"requests": req, "functions": fc})
 }
 
 /*

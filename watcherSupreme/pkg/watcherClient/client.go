@@ -70,6 +70,8 @@ func (w *WatcherClient) executeRequest(endpoint string, msg interface{}) (bool, 
 
 	if resp.StatusCode == 200 {
 		return true, nil
+	} else if resp.StatusCode == 404 {
+		return false, nil
 	} else {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {

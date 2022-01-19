@@ -80,7 +80,6 @@ func check(c *gin.Context) {
 	CPU_QUOTAS = -1.
 */
 func resetHandler(c *gin.Context) {
-	log.Println("Reset Handler - Start")
 	var rs wrq.ResetRequest
 	if err := c.ShouldBind(&rs); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -88,11 +87,9 @@ func resetHandler(c *gin.Context) {
 	}
 	if err := conflictResolver.RemoveFromRegistry(rs); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		log.Println("Reset Handler - End")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
-	log.Println("Reset Handler - End")
 }
 
 /*
@@ -100,7 +97,6 @@ func resetHandler(c *gin.Context) {
 	docker container resources.
 */
 func requestHandler(c *gin.Context) {
-	log.Println("Request Handler - Start")
 	var req wrq.Request
 	if err := c.ShouldBind(&req); err != nil {
 		c.String(http.StatusBadRequest, err.Error())
@@ -109,10 +105,8 @@ func requestHandler(c *gin.Context) {
 	// TO DO: Solve Openwhisk autoscaling problem
 	var containerID string
 	if !conflictResolver.RegistryContains(req.Function) {
-		log.Println("Searching container runtime for the specified container")
 		container, err := conflictResolver.SearchDockerRuntime(req.Function, "user-action")
 		if err != nil {
-			log.Println("Search registry returned an error")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		} else if container == nil {
@@ -120,7 +114,6 @@ func requestHandler(c *gin.Context) {
 			return
 		}
 		containerID = container.ID
-		log.Printf("Container ID: %s\n", containerID)
 	}
 	desiredQuotas := computePIDControllerOutput(&req)
 	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, containerID, retainCPUThreshold(desiredQuotas+100000)); err != nil {
@@ -128,7 +121,6 @@ func requestHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
-	log.Println("Request Handler - End")
 }
 
 /*
@@ -136,11 +128,8 @@ func requestHandler(c *gin.Context) {
 	Returns conflict resolver registry.
 */
 func getRegistry(c *gin.Context) {
-	res := make(gin.H)
-	for k, s := range conflictResolver.Registry {
-		res[k] = *s
-	}
-	c.JSON(http.StatusOK, gin.H{"registry": res})
+	reg := conflictResolver.ExportRegistry()
+	c.JSON(http.StatusOK, gin.H{"registry": reg})
 }
 
 /*

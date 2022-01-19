@@ -61,6 +61,7 @@ type ConflictResolverInterface interface {
 	UpdateRegistry(id uint64, function string, quotas int64) error
 	RemoveFromRegistry(rs wrq.ResetRequest) error
 	ReconfigureRegistry() error
+	ExportRegistry() map[string]interface{}
 }
 
 type ConflictResolver struct {
@@ -104,14 +105,11 @@ func (cr *ConflictResolver) UpdateRegistry(id uint64, function, containerID stri
 	cr.mutex.Lock()
 	state, ok := cr.Registry[function]
 	if !ok {
-		log.Println("Creating new function state")
 		state = wfs.NewFunctionState(containerID)
 		cr.Registry[function] = state
 	}
 	if quotas > state.DesiredQuotas {
-		log.Println("Incoming request has higher priority than current")
 		if state.DesiredQuotas != 0 {
-			log.Println("Adding old request into Active map")
 			state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
 		}
 		quotas_old := state.DesiredQuotas
@@ -119,7 +117,6 @@ func (cr *ConflictResolver) UpdateRegistry(id uint64, function, containerID stri
 		state.Quotas = quotas
 		cr.ReconfigureRegistry(containerID, quotas, quotas_old)
 	} else {
-		log.Printf("Adding request into Active map: %v, %v\n", id, quotas)
 		state.Requests.Active[id] = quotas
 	}
 	cr.mutex.Unlock()
@@ -138,9 +135,7 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 		return fmt.Errorf("request for '%v' function not found", rs.Function)
 	}
 	if state.Requests.Current == rs.ID {
-		log.Println("Incoming reset request is about current request")
 		if len(state.Requests.Active) == 0 {
-			log.Println("No requests inside Active, Deleting function key")
 			// TO DO: Solve Openwhisk autoscaling problem
 			if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
 				cr.mutex.Unlock()
@@ -149,12 +144,9 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 			delete(cr.Registry, rs.Function)
 			cr.ReconfigureRegistry(state.Container, 0, state.DesiredQuotas)
 		} else {
-			log.Println("There are Active requests - Need to find next")
 			quotas_old := state.DesiredQuotas
 			state.Requests.Current, state.DesiredQuotas = nextRequest(state)
 			state.Quotas = state.DesiredQuotas
-			log.Printf("New current request: %v,%v\n", state.Requests.Current, state.DesiredQuotas)
-			log.Printf("Deleting it from Active map")
 			delete(state.Requests.Active, state.Requests.Current)
 			cr.ReconfigureRegistry(
 				state.Container,
@@ -167,7 +159,6 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 			cr.mutex.Unlock()
 			return fmt.Errorf("request %v not found", rs.ID)
 		}
-		log.Println("Incoming reset request is about a request inside Active map: Deleting it")
 		delete(state.Requests.Active, rs.ID)
 	}
 	cr.mutex.Unlock()
@@ -253,6 +244,20 @@ func (cr *ConflictResolver) SearchDockerRuntime(function, podType string) (*type
 		}
 	}
 	return nil, nil
+}
+
+/*
+	Export Registry information.
+	Method used for debugging purposes.
+*/
+func (cr *ConflictResolver) ExportRegistry() map[string]interface{} {
+	res := make(map[string]interface{})
+	cr.mutex.RLock()
+	for k, s := range cr.Registry {
+		res[k] = *s
+	}
+	cr.mutex.RUnlock()
+	return res
 }
 
 /*
