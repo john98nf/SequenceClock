@@ -33,14 +33,8 @@ spec:
       labels:
         name: "{{ .Release.Name }}-watcher"
     spec:
-      # Include this part, if scheduling to master
-      # node is desired.
-      {{ if eq .Values.cluster.ignoreMasterTaint true  }}
-      tolerations:
-      - key: node-role.kubernetes.io/master
-        operator: Exists
-        effect: NoSchedule
-      {{ end }}
+      nodeSelector:
+        openwhisk-role: invoker
       containers:
       - name: "{{ .Release.Name }}-watcher"
         image: "{{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag | default .Chart.AppVersion }}"

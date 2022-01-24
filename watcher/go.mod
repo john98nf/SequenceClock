@@ -29,6 +29,7 @@ replace github.com/john98nf/SequenceClock/watcher/pkg/request => ./pkg/request
 replace github.com/john98nf/SequenceClock/watcher/internal/state => ./internal/state
 
 require (
+	github.com/docker/docker v20.10.8+incompatible
 	github.com/gin-gonic/gin v1.7.4
 	github.com/john98nf/SequenceClock/watcher/internal/conflicts v0.0.0-00010101000000-000000000000
 	github.com/john98nf/SequenceClock/watcher/internal/state v0.0.0-20210901212831-7d78eb166378

@@ -21,30 +21,25 @@
 package main
 
 import (
-	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/john98nf/SequenceClock/watcher/internal/conflicts"
-	wfs "github.com/john98nf/SequenceClock/watcher/internal/state"
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	Kp int64 = 10
-	Ki int64 = 1
-	Kd int64 = 0
-)
-
 var (
 	hostIP           string = os.Getenv("HOST_IP")
 	conflictResolver conflicts.ConflictResolver
+	cores            int64
 )
 
 func main() {
-	router := gin.Default()
+	router := gin.New()
 
 	apiWatcher := router.Group("/api")
 	{
@@ -57,9 +52,11 @@ func main() {
 		// POST ResetRequest http://localhost:8080/api/function/resetRequest
 		apiWatcher.POST("/function/resetRequest", resetHandler)
 		// GET ResetRequest http://localhost:8080/api/registry
-		apiWatcher.POST("/registry", getRegistry)
+		apiWatcher.GET("/registry", getRegistry)
 	}
-	conflictResolver = conflicts.NewConflictResolver()
+	cores = findNodeCores()
+	log.Printf("Number of available cores: %d\n", cores)
+	conflictResolver = conflicts.NewConflictResolver(cores)
 	router.Run(":8080")
 }
 
@@ -98,21 +95,11 @@ func requestHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	// TO DO: Solve Openwhisk autoscaling problem
-	if _, ok := conflictResolver.Registry[req.Function]; !ok {
-		container, err := conflictResolver.SearchRegistry(req.Function, "user-action")
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		} else if container == nil {
-			c.JSON(http.StatusNotFound, gin.H{"message": "Not Found"})
-			return
-		}
-		conflictResolver.Registry[req.Function] = wfs.NewFunctionState(container.ID)
-	}
-	desiredQuotas := computePIDControllerOutput(&req)
-	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, retainCPUThreshold(desiredQuotas+100000)); err != nil {
+	if found, err := conflictResolver.UpdateRegistry(&req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	} else if !found {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Not Found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
@@ -123,12 +110,8 @@ func requestHandler(c *gin.Context) {
 	Returns conflict resolver registry.
 */
 func getRegistry(c *gin.Context) {
-	data, err := json.Marshal(conflictResolver.Registry)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, data)
+	reg := conflictResolver.ExportRegistry()
+	c.JSON(http.StatusOK, gin.H{"registry": reg})
 }
 
 /*
@@ -146,7 +129,7 @@ func getContainer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Not supported pod type."})
 		return
 	}
-	cnt, err := conflictResolver.SearchRegistry(fName, pdt[podType])
+	cnt, err := conflictResolver.SearchDockerRuntime(fName, pdt[podType])
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -157,26 +140,16 @@ func getContainer(c *gin.Context) {
 	c.JSON(http.StatusOK, cnt)
 }
 
-/*
-	PID controller function.
-	Input: slack in nanoseconds
-	Output: Δcpu_quotas in miliseconds
-*/
-func computePIDControllerOutput(req *wrq.Request) int64 {
-	return -1 * mseconds(Kp*req.Metrics.Slack+
-		Ki*req.Metrics.SumOfSlack+
-		Kd*req.Metrics.PreviousSlack)
-}
-
-func retainCPUThreshold(quotas int64) int64 {
-	threshold := conflicts.CPU_PERIOD_OPENWHISK_DEFAULT * conflicts.CORES
-	if quotas > threshold {
-		return threshold
-	} else {
-		return quotas
+func findNodeCores() int64 {
+	var cores_info map[string]int64 = map[string]int64{
+		"192.168.1.243": 4,
+		"192.168.1.244": 4,
+		"192.168.1.245": 4,
+		"192.168.1.246": 2,
 	}
-}
-
-func mseconds(x int64) int64 {
-	return int64(float64(x) * 0.0000001)
+	n, ok := cores_info[hostIP]
+	if !ok {
+		panic(fmt.Errorf("unkown number of cores for host with IP %s", hostIP))
+	}
+	return n
 }

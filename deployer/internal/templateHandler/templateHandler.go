@@ -88,10 +88,16 @@ func (tpl *Template) Create() error {
 	and deployes it to openwhisk client.
 */
 func (tpl *Template) Deploy() error {
+	timeout := 300000
+	concurrency := 1
 	newAction := whisk.Action{
 		Name:        tpl.Sequence.Name,
 		Namespace:   os.Getenv("NAMESPACE"),
 		Annotations: whisk.KeyValueArr{whisk.KeyValue{Key: "provide-api-key", Value: "true"}},
+		Limits: &whisk.Limits{
+			Timeout:     &timeout,
+			Concurrency: &concurrency,
+		},
 	}
 	newAction.Exec = new(whisk.Exec)
 	newAction.Exec.Kind = GO_RUNTIME

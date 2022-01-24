@@ -24,7 +24,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"regexp"
+	"sync"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -34,7 +36,7 @@ import (
 )
 
 const (
-	REG_EXP                      string = `^wskowdev-invoker-00-[0-9][0-9]-guest-%v`
+	REG_EXP                      string = `^wskowdev-invoker-[0-9]*-[0-9]*-guest-%v`
 	BLKIO_WEIGHT_DEFAULT         uint16 = 0
 	CPUSET_CPUS_DEFAULT          string = ""
 	CPUSET_MEMS_DEFAULT          string = ""
@@ -49,48 +51,94 @@ const (
 	KERNEL_MEMORY_DEFAULT        int64  = 0
 	NANO_CPUS_DEFAULT            int64  = 0
 	RESTART_POLICY_DEFAULT       string = "" // Openwhisk default {"Name": "no",MaximumRetryCount: 0}
-	CORES                        int64  = 4
 	CPU_PERIOD_OPENWHISK_DEFAULT int64  = 100000
+	CPU_QUOTAS_LOWER_BOUND       int64  = 1000
+	Kp                           int64  = 10
+	Ki                           int64  = 3
+	Kd                           int64  = 0
 )
 
+var found bool
+
 type ConflictResolverInterface interface {
-	SearchRegistry(function, podType string) (*types.Container, error)
+	SearchDockerRuntime(function, podType string) (*types.Container, error)
+	RegistryContains(function string) bool
+	InsertToRegistry()
 	UpdateRegistry(id uint64, function string, quotas int64) error
 	RemoveFromRegistry(rs wrq.ResetRequest) error
 	ReconfigureRegistry() error
+	ExportRegistry() map[string]interface{}
 }
 
 type ConflictResolver struct {
-	Registry     map[string]*wfs.FunctionState
-	DockerClient *client.Client
+	mutex          sync.RWMutex
+	Registry       map[string]*wfs.FunctionState
+	DockerClient   *client.Client
+	Cores          int64
+	lambdaPrevious float64
 }
 
-func NewConflictResolver() ConflictResolver {
+func NewConflictResolver(cores int64) ConflictResolver {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)
 	}
 	registry := make(map[string]*wfs.FunctionState)
 	return ConflictResolver{
+		mutex:        sync.RWMutex{},
 		Registry:     registry,
 		DockerClient: cli,
+		Cores:        cores,
 	}
+}
+
+/*
+	Searches Registry data stucture
+	for existing function state.
+*/
+func (cr *ConflictResolver) RegistryContains(function string) bool {
+	cr.mutex.RLock()
+	_, ok := cr.Registry[function]
+	cr.mutex.RUnlock()
+	return ok
 }
 
 /*
 	Places new request into registry and
 	update container resources.
 */
-func (cr *ConflictResolver) UpdateRegistry(id uint64, function string, quotas int64) error {
-	state := cr.Registry[function]
-	if quotas > state.Quotas {
-		state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
-		state.Requests.Current, state.DesiredQuotas = id, quotas
-		cr.ReconfigureRegistry()
-	} else {
-		state.Requests.Active[id] = quotas
+func (cr *ConflictResolver) UpdateRegistry(req *wrq.Request) (bool, error) {
+	cr.mutex.Lock()
+	state, ok := cr.Registry[req.Function]
+	if !ok {
+		// TO DO: Solve Openwhisk autoscaling problem
+		container, err := cr.SearchDockerRuntime(req.Function, "user-action")
+		if err != nil {
+			cr.mutex.Unlock()
+			return false, err
+		} else if container == nil {
+			cr.mutex.Unlock()
+			return false, nil
+		}
+		state = wfs.NewFunctionState(container.ID)
+		cr.Registry[req.Function] = state
 	}
-	return nil
+
+	quotas := retainCPUThreshold(computePIDControllerOutput(req)+CPU_PERIOD_OPENWHISK_DEFAULT, cr.Cores)
+
+	if quotas > state.DesiredQuotas {
+		if state.DesiredQuotas != 0 {
+			state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
+		}
+		quotas_old := state.DesiredQuotas
+		state.Requests.Current, state.DesiredQuotas = req.ID, quotas
+		state.Quotas = quotas
+		cr.ReconfigureRegistry(state.Container, quotas, quotas_old)
+	} else {
+		state.Requests.Active[req.ID] = quotas
+	}
+	cr.mutex.Unlock()
+	return true, nil
 }
 
 /*
@@ -98,27 +146,42 @@ func (cr *ConflictResolver) UpdateRegistry(id uint64, function string, quotas in
 	and resets function state.
 */
 func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
+	cr.mutex.Lock()
 	state, ok := cr.Registry[rs.Function]
 	if !ok {
+		cr.mutex.Unlock()
 		return fmt.Errorf("request for '%v' function not found", rs.Function)
 	}
 	if state.Requests.Current == rs.ID {
 		if len(state.Requests.Active) == 0 {
 			// TO DO: Solve Openwhisk autoscaling problem
-			if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
+			if err := cr.updateContainerCPUQuota(state.Container, CPU_QUOTAS_LOWER_BOUND); err != nil {
+				delete(cr.Registry, rs.Function)
+				cr.ReconfigureRegistry(state.Container, 0, state.DesiredQuotas)
+				cr.mutex.Unlock()
 				return err
 			}
 			delete(cr.Registry, rs.Function)
+			cr.ReconfigureRegistry(state.Container, 0, state.DesiredQuotas)
 		} else {
+			quotas_old := state.DesiredQuotas
 			state.Requests.Current, state.DesiredQuotas = nextRequest(state)
+			state.Quotas = state.DesiredQuotas
+			delete(state.Requests.Active, state.Requests.Current)
+			cr.ReconfigureRegistry(
+				state.Container,
+				state.DesiredQuotas,
+				quotas_old,
+			)
 		}
-		cr.ReconfigureRegistry()
 	} else {
 		if _, ok := state.Requests.Active[rs.ID]; !ok {
+			cr.mutex.Unlock()
 			return fmt.Errorf("request %v not found", rs.ID)
 		}
 		delete(state.Requests.Active, rs.ID)
 	}
+	cr.mutex.Unlock()
 	return nil
 }
 
@@ -145,25 +208,47 @@ func nextRequest(state *wfs.FunctionState) (uint64, int64) {
 	using the formula λ*DesiredCPUQuotas
 	where λ = CPU_Cores / sum of DesiredCPUQuotas.
 */
-func (cr *ConflictResolver) ReconfigureRegistry() {
-	var sum int64
-	for _, s := range cr.Registry {
-		sum += s.DesiredQuotas
+func (cr *ConflictResolver) ReconfigureRegistry(container string, quotas_new int64, quotas_old int64) {
+	var (
+		sum    int64
+		lambda float64
+	)
+	if cr.lambdaPrevious == 0 {
+		for _, s := range cr.Registry {
+			sum += s.DesiredQuotas
+		}
+		lambda = float64(cr.Cores*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
+	} else {
+		nt := float64(cr.Cores * CPU_PERIOD_OPENWHISK_DEFAULT)
+		lambda = nt / (nt/cr.lambdaPrevious + float64(quotas_new-quotas_old))
 	}
-	lamda := float64(CORES*CPU_PERIOD_OPENWHISK_DEFAULT) / float64(sum)
-	for f, s := range cr.Registry {
-		s.Quotas = int64(lamda * float64(s.DesiredQuotas))
-		if err := cr.updateContainerCPUQuota(cr.Registry[f].Container, s.Quotas); err != nil {
-			log.Println(err.Error())
+
+	if (cr.lambdaPrevious == 1) && (lambda == 1) {
+		if quotas_new != 0 {
+			if err := cr.updateContainerCPUQuota(container, quotas_new); err != nil {
+				log.Println(err.Error())
+			}
+		}
+	} else {
+		for f, s := range cr.Registry {
+			if lambda < 1.0 {
+				s.Quotas = lowerBound(int64(lambda * float64(s.DesiredQuotas)))
+			} else {
+				s.Quotas = s.DesiredQuotas
+			}
+			if err := cr.updateContainerCPUQuota(cr.Registry[f].Container, s.Quotas); err != nil {
+				log.Println(err.Error())
+			}
 		}
 	}
+	cr.lambdaPrevious = lambda
 }
 
 /*
 	Helper method for searching docker runtime
 	for an openwhisk action container.
 */
-func (cr *ConflictResolver) SearchRegistry(function, podType string) (*types.Container, error) {
+func (cr *ConflictResolver) SearchDockerRuntime(function, podType string) (*types.Container, error) {
 	containers, err := cr.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err
@@ -179,6 +264,20 @@ func (cr *ConflictResolver) SearchRegistry(function, podType string) (*types.Con
 		}
 	}
 	return nil, nil
+}
+
+/*
+	Export Registry information.
+	Method used for debugging purposes.
+*/
+func (cr *ConflictResolver) ExportRegistry() map[string]interface{} {
+	res := make(map[string]interface{})
+	cr.mutex.RLock()
+	for k, s := range cr.Registry {
+		res[k] = *s
+	}
+	cr.mutex.RUnlock()
+	return res
 }
 
 /*
@@ -211,4 +310,48 @@ func (cr *ConflictResolver) updateContainerCPUQuota(containerID string, cpuQuota
 		return err
 	}
 	return nil
+}
+
+/*
+	PID controller function.
+	Input: slack in nanoseconds
+	Output: Δcpu_quotas in miliseconds
+*/
+func computePIDControllerOutput(req *wrq.Request) int64 {
+	return -1 * mseconds(Kp*req.Metrics.Slack+
+		Ki*req.Metrics.SumOfSlack+
+		Kd*req.Metrics.PreviousSlack)
+}
+
+/*
+	Apply upper and lower bound to PID output.
+*/
+func retainCPUThreshold(quotas, cores int64) int64 {
+	threshold := CPU_PERIOD_OPENWHISK_DEFAULT * cores
+	if quotas > threshold {
+		return threshold
+	} else if quotas <= 5*CPU_QUOTAS_LOWER_BOUND {
+		return 5 * CPU_QUOTAS_LOWER_BOUND
+	} else {
+		return quotas
+	}
+}
+
+/*
+	Convert nanoseconds into milliseconds.
+*/
+func mseconds(x int64) int64 {
+	return int64(math.Round(float64(x) * 0.000001))
+}
+
+/*
+	Apply lower bound to lambda correction.
+	Used by ReconfigureRegistry
+*/
+func lowerBound(q int64) int64 {
+	if q <= CPU_QUOTAS_LOWER_BOUND {
+		return CPU_QUOTAS_LOWER_BOUND
+	} else {
+		return q
+	}
 }

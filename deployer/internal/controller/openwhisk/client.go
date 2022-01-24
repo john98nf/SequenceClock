@@ -28,12 +28,11 @@ import (
 	"net/url"
 
 	"github.com/iris-contrib/schema"
-	req "github.com/john98nf/SequenceClock/watcher/pkg/request"
 )
 
 type watcherClientInterface interface {
-	RequestResources(r *req.Request) (*req.ResetRequest, error)
-	ResetResources(r *req.ResetRequest) error
+	RequestResources(r *Request) (*ResetRequest, error)
+	ResetResources(r *ResetRequest) error
 }
 
 type WatcherClient struct {
@@ -46,19 +45,19 @@ func NewWatcherClient(host string) *WatcherClient {
 	}
 }
 
-func (client *WatcherClient) RequestResources(r *req.Request) (*req.ResetRequest, error) {
+func (client *WatcherClient) RequestResources(r *Request) (*ResetRequest, error) {
 	body, err := postHTTPRequest(client.endpoint+"/requestResources", *r)
 	if err != nil {
 		return nil, err
 	} else {
-		res := req.NewResetRequest(0, r.Function)
+		res := NewResetRequest(0, r.Function)
 		err := json.Unmarshal(body, res)
 		return res, err
 	}
 }
 
-func (client *WatcherClient) ResetResources(r *req.ResetRequest) error {
-	_, err := postHTTPRequest(client.endpoint+"/resetRequest", *r)
+func (client *WatcherClient) ResetResources(r *ResetRequest) error {
+	_, err := postHTTPRequest(client.endpoint+"/resetResources", *r)
 	return err
 }
 
@@ -81,6 +80,6 @@ func postHTTPRequest(endpoint string, data interface{}) ([]byte, error) {
 	if resp.StatusCode == 200 {
 		return body, nil
 	} else {
-		return nil, fmt.Errorf("watcher responded with %v status code", resp.StatusCode)
+		return nil, fmt.Errorf(string(body))
 	}
 }

@@ -27,13 +27,14 @@
 package main
 
 import (
-	"log"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/apache/openwhisk-client-go/whisk"
-	req "github.com/john98nf/SequenceClock/watcher/pkg/request"
 )
 
 type controller (func(map[string]interface{}) map[string]interface{})
@@ -66,10 +67,25 @@ func Main(obj map[string]interface{}) map[string]interface{} {
 	Used for benchmarking purposes and referrence point.
 */
 func dummyControl(obj map[string]interface{}) map[string]interface{} {
+	var (
+		id         string
+		status     string
+		latency    int64
+		fullRes    map[string]interface{}
+		err        error
+		errMetrics error
+	)
 	aRes := obj
 	for i, f := range functionList {
-		log.Printf("Invoking function-%v %v\n", i, f)
-		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
+		fullRes, _, err = client.Actions.Invoke(f, aRes, true, false)
+		if err != nil {
+			panic(err)
+		}
+		id, status, latency, aRes, errMetrics = extractMetrics(fullRes)
+		if errMetrics != nil {
+			panic(errMetrics.Error())
+		}
+		fmt.Println(i, id, latency, strings.Replace(status, " ", "", -1))
 	}
 	return aRes
 }
@@ -83,38 +99,67 @@ func dummyControl(obj map[string]interface{}) map[string]interface{} {
 */
 func greedyControl(obj map[string]interface{}) map[string]interface{} {
 	var (
-		tStart  time.Time
-		tEnd    time.Time
-		elapsed time.Duration
-		r       req.Request = req.NewRequest("", &req.Metrics{})
+		tStart     time.Time
+		tEnd       time.Time
+		elapsed    time.Duration
+		id         string
+		status     string
+		latency    int64
+		fullRes    map[string]interface{}
+		r          *Request = NewRequest("", &Metrics{})
+		errMetrics error
 	)
 
 	watcherClient := NewWatcherClient(KUBE_MAIN_IP)
 	aRes := obj
 	for i, f := range functionList {
 		tStart = time.Now()
-		log.Printf("Slack: %v\n", r.Slack)
-		r.Function = functionsList[i]
-		r.ProfiledExecutionTime = profiledExecutionTimes[i]
+		r.Function = functionList[i]
 		reset, err := watcherClient.RequestResources(r)
 		if err != nil {
-			log.Printf("Error from watcher client: %v\n", err.Error())
+			panic(err)
 		}
 
-		log.Printf("Invoking function-%v %v\n", i, f)
-		aRes, _, _ = client.Actions.Invoke(f, aRes, true, true)
+		fullRes, _, err = client.Actions.Invoke(f, aRes, true, false)
 
-		log.Println("Sending reset request")
-		if err := watcherClient.ResetRequest(reset); err != nil {
-			log.Printf("Error from watcher client: %v\n", err.Error())
+		if err := watcherClient.ResetResources(reset); err != nil {
+			panic(err)
 		}
+		if err != nil {
+			panic(err)
+		}
+		id, status, latency, aRes, errMetrics = extractMetrics(fullRes)
+		if errMetrics != nil {
+			panic(errMetrics)
+		}
+		fmt.Println(i, id, latency, strings.Replace(status, " ", "", -1), r.Metrics.Slack)
+		if status != "success" {
+			panic(fmt.Errorf("invocation terminated with status: %s", status))
+		}
+
 		tEnd = time.Now()
 		elapsed = tEnd.Sub(tStart)
-		log.Printf("Elapsed time: %v\n", elapsed)
-		r.PreviousSlack = r.Slack
-		r.Slack += profiledExecutionTimes[i] - int64(elapsed)
-		r.SumOfSlack += r.Slack
+		r.Metrics.PreviousSlack = r.Metrics.Slack
+		r.Metrics.Slack += profiledExecutionTimes[i] - int64(elapsed)
+		r.Metrics.SumOfSlack += r.Metrics.Slack
 	}
-	log.Printf("Last slack %v\n", r.Slack)
 	return aRes
+}
+
+/*
+	Helper function for extracting information
+	from OpenWhisk API output.
+*/
+func extractMetrics(r map[string]interface{}) (string, string, int64, map[string]interface{}, error) {
+	end, err1 := r["end"].(json.Number).Int64()
+	start, err2 := r["start"].(json.Number).Int64()
+	id, ok3 := r["activationId"].(string)
+	status, ok4 := r["response"].(map[string]interface{})["status"].(string)
+	res, ok5 := r["response"].(map[string]interface{})["result"].(map[string]interface{})
+
+	if err1 != nil || err2 != nil || !ok3 || !ok4 || !ok5 {
+		return id, status, (end - start), res, fmt.Errorf("problem with type assertion (end, start, activationId, status, result): (%v, %v, %v, %v, %v)", err1.Error(), err2.Error(), ok3, ok4, ok5)
+	}
+	return id, status, (end - start), res, nil
+
 }
