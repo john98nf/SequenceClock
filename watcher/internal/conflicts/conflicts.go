@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"regexp"
 	"sync"
 
@@ -52,7 +53,12 @@ const (
 	RESTART_POLICY_DEFAULT       string = "" // Openwhisk default {"Name": "no",MaximumRetryCount: 0}
 	CPU_PERIOD_OPENWHISK_DEFAULT int64  = 100000
 	CPU_QUOTAS_LOWER_BOUND       int64  = 1000
+	Kp                           int64  = 10
+	Ki                           int64  = 3
+	Kd                           int64  = 0
 )
+
+var found bool
 
 type ConflictResolverInterface interface {
 	SearchDockerRuntime(function, podType string) (*types.Container, error)
@@ -101,26 +107,38 @@ func (cr *ConflictResolver) RegistryContains(function string) bool {
 	Places new request into registry and
 	update container resources.
 */
-func (cr *ConflictResolver) UpdateRegistry(id uint64, function, containerID string, quotas int64) error {
+func (cr *ConflictResolver) UpdateRegistry(req *wrq.Request) (bool, error) {
 	cr.mutex.Lock()
-	state, ok := cr.Registry[function]
+	state, ok := cr.Registry[req.Function]
 	if !ok {
-		state = wfs.NewFunctionState(containerID)
-		cr.Registry[function] = state
+		// TO DO: Solve Openwhisk autoscaling problem
+		container, err := cr.SearchDockerRuntime(req.Function, "user-action")
+		if err != nil {
+			cr.mutex.Unlock()
+			return false, err
+		} else if container == nil {
+			cr.mutex.Unlock()
+			return false, nil
+		}
+		state = wfs.NewFunctionState(container.ID)
+		cr.Registry[req.Function] = state
 	}
+
+	quotas := retainCPUThreshold(computePIDControllerOutput(req)+CPU_PERIOD_OPENWHISK_DEFAULT, cr.Cores)
+
 	if quotas > state.DesiredQuotas {
 		if state.DesiredQuotas != 0 {
 			state.Requests.Active[state.Requests.Current] = state.DesiredQuotas
 		}
 		quotas_old := state.DesiredQuotas
-		state.Requests.Current, state.DesiredQuotas = id, quotas
+		state.Requests.Current, state.DesiredQuotas = req.ID, quotas
 		state.Quotas = quotas
-		cr.ReconfigureRegistry(containerID, quotas, quotas_old)
+		cr.ReconfigureRegistry(state.Container, quotas, quotas_old)
 	} else {
-		state.Requests.Active[id] = quotas
+		state.Requests.Active[req.ID] = quotas
 	}
 	cr.mutex.Unlock()
-	return nil
+	return true, nil
 }
 
 /*
@@ -137,7 +155,9 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 	if state.Requests.Current == rs.ID {
 		if len(state.Requests.Active) == 0 {
 			// TO DO: Solve Openwhisk autoscaling problem
-			if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
+			if err := cr.updateContainerCPUQuota(state.Container, CPU_QUOTAS_LOWER_BOUND); err != nil {
+				delete(cr.Registry, rs.Function)
+				cr.ReconfigureRegistry(state.Container, 0, state.DesiredQuotas)
 				cr.mutex.Unlock()
 				return err
 			}
@@ -212,7 +232,7 @@ func (cr *ConflictResolver) ReconfigureRegistry(container string, quotas_new int
 	} else {
 		for f, s := range cr.Registry {
 			if lambda < 1.0 {
-				s.Quotas = int64(lambda * float64(s.DesiredQuotas))
+				s.Quotas = lowerBound(int64(lambda * float64(s.DesiredQuotas)))
 			} else {
 				s.Quotas = s.DesiredQuotas
 			}
@@ -290,4 +310,48 @@ func (cr *ConflictResolver) updateContainerCPUQuota(containerID string, cpuQuota
 		return err
 	}
 	return nil
+}
+
+/*
+	PID controller function.
+	Input: slack in nanoseconds
+	Output: Δcpu_quotas in miliseconds
+*/
+func computePIDControllerOutput(req *wrq.Request) int64 {
+	return -1 * mseconds(Kp*req.Metrics.Slack+
+		Ki*req.Metrics.SumOfSlack+
+		Kd*req.Metrics.PreviousSlack)
+}
+
+/*
+	Apply upper and lower bound to PID output.
+*/
+func retainCPUThreshold(quotas, cores int64) int64 {
+	threshold := CPU_PERIOD_OPENWHISK_DEFAULT * cores
+	if quotas > threshold {
+		return threshold
+	} else if quotas <= 5*CPU_QUOTAS_LOWER_BOUND {
+		return 5 * CPU_QUOTAS_LOWER_BOUND
+	} else {
+		return quotas
+	}
+}
+
+/*
+	Convert nanoseconds into milliseconds.
+*/
+func mseconds(x int64) int64 {
+	return int64(math.Round(float64(x) * 0.000001))
+}
+
+/*
+	Apply lower bound to lambda correction.
+	Used by ReconfigureRegistry
+*/
+func lowerBound(q int64) int64 {
+	if q <= CPU_QUOTAS_LOWER_BOUND {
+		return CPU_QUOTAS_LOWER_BOUND
+	} else {
+		return q
+	}
 }

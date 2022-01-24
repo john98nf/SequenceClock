@@ -23,7 +23,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"net/http"
 	"os"
 
@@ -31,12 +30,6 @@ import (
 	wrq "github.com/john98nf/SequenceClock/watcher/pkg/request"
 
 	"github.com/gin-gonic/gin"
-)
-
-const (
-	Kp int64 = 10
-	Ki int64 = 1
-	Kd int64 = 0
 )
 
 var (
@@ -102,22 +95,11 @@ func requestHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
-	// TO DO: Solve Openwhisk autoscaling problem
-	var containerID string
-	if !conflictResolver.RegistryContains(req.Function) {
-		container, err := conflictResolver.SearchDockerRuntime(req.Function, "user-action")
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		} else if container == nil {
-			c.JSON(http.StatusNotFound, gin.H{"message": "Not Found"})
-			return
-		}
-		containerID = container.ID
-	}
-	desiredQuotas := computePIDControllerOutput(&req)
-	if err := conflictResolver.UpdateRegistry(req.ID, req.Function, containerID, retainCPUThreshold(desiredQuotas+100000)); err != nil {
+	if found, err := conflictResolver.UpdateRegistry(&req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	} else if !found {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Not Found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
@@ -156,32 +138,6 @@ func getContainer(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, cnt)
-}
-
-/*
-	PID controller function.
-	Input: slack in nanoseconds
-	Output: Δcpu_quotas in miliseconds
-*/
-func computePIDControllerOutput(req *wrq.Request) int64 {
-	return -1 * mseconds(Kp*req.Metrics.Slack+
-		Ki*req.Metrics.SumOfSlack+
-		Kd*req.Metrics.PreviousSlack)
-}
-
-func retainCPUThreshold(quotas int64) int64 {
-	threshold := conflicts.CPU_PERIOD_OPENWHISK_DEFAULT * cores
-	if quotas > threshold {
-		return threshold
-	} else if quotas <= conflicts.CPU_QUOTAS_LOWER_BOUND {
-		return conflicts.CPU_QUOTAS_LOWER_BOUND
-	} else {
-		return quotas
-	}
-}
-
-func mseconds(x int64) int64 {
-	return int64(math.Round(float64(x) * 0.000001))
 }
 
 func findNodeCores() int64 {
