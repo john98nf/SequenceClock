@@ -162,7 +162,11 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 				log.Println(err.Error())
 			}
 			delete(cr.Registry, rs.Function)
-			cr.ReconfigureRegistry(0, state.DesiredQuotas)
+			if len(cr.Registry) != 0 {
+				cr.ReconfigureRegistry(0, state.DesiredQuotas)
+			} else {
+				cr.lambdaPrevious = 0
+			}
 		} else {
 			quotas_old := state.DesiredQuotas
 			state.Requests.Current, state.DesiredQuotas = nextRequest(state)
