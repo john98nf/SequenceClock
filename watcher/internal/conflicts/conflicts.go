@@ -54,7 +54,7 @@ const (
 	CPU_PERIOD_OPENWHISK_DEFAULT int64  = 100000
 	CPU_QUOTAS_LOWER_BOUND       int64  = 1000
 	Kp                           int64  = 10
-	Ki                           int64  = 3
+	Ki                           int64  = 1
 	Kd                           int64  = 0
 )
 
@@ -133,7 +133,10 @@ func (cr *ConflictResolver) UpdateRegistry(req *wrq.Request) (bool, error) {
 		quotas_old := state.DesiredQuotas
 		state.Requests.Current, state.DesiredQuotas = req.ID, quotas
 		state.Quotas = quotas
-		cr.ReconfigureRegistry(state.Container, quotas, quotas_old)
+		if err := cr.updateContainerCPUQuota(state.Container, quotas); err != nil {
+			log.Println(err.Error())
+		}
+		cr.ReconfigureRegistry(quotas, quotas_old)
 	} else {
 		state.Requests.Active[req.ID] = quotas
 	}
@@ -155,24 +158,24 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 	if state.Requests.Current == rs.ID {
 		if len(state.Requests.Active) == 0 {
 			// TO DO: Solve Openwhisk autoscaling problem
-			if err := cr.updateContainerCPUQuota(state.Container, CPU_QUOTAS_LOWER_BOUND); err != nil {
-				delete(cr.Registry, rs.Function)
-				cr.ReconfigureRegistry(state.Container, 0, state.DesiredQuotas)
-				cr.mutex.Unlock()
-				return err
+			if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
+				log.Println(err.Error())
 			}
 			delete(cr.Registry, rs.Function)
-			cr.ReconfigureRegistry(state.Container, 0, state.DesiredQuotas)
+			if len(cr.Registry) != 0 {
+				cr.ReconfigureRegistry(0, state.DesiredQuotas)
+			} else {
+				cr.lambdaPrevious = 0
+			}
 		} else {
 			quotas_old := state.DesiredQuotas
 			state.Requests.Current, state.DesiredQuotas = nextRequest(state)
 			state.Quotas = state.DesiredQuotas
 			delete(state.Requests.Active, state.Requests.Current)
-			cr.ReconfigureRegistry(
-				state.Container,
-				state.DesiredQuotas,
-				quotas_old,
-			)
+			if err := cr.updateContainerCPUQuota(state.Container, state.Quotas); err != nil {
+				log.Println(err.Error())
+			}
+			cr.ReconfigureRegistry(state.DesiredQuotas, quotas_old)
 		}
 	} else {
 		if _, ok := state.Requests.Active[rs.ID]; !ok {
@@ -208,7 +211,7 @@ func nextRequest(state *wfs.FunctionState) (uint64, int64) {
 	using the formula λ*DesiredCPUQuotas
 	where λ = CPU_Cores / sum of DesiredCPUQuotas.
 */
-func (cr *ConflictResolver) ReconfigureRegistry(container string, quotas_new int64, quotas_old int64) {
+func (cr *ConflictResolver) ReconfigureRegistry(quotas_new int64, quotas_old int64) {
 	var (
 		sum    int64
 		lambda float64
@@ -223,13 +226,7 @@ func (cr *ConflictResolver) ReconfigureRegistry(container string, quotas_new int
 		lambda = nt / (nt/cr.lambdaPrevious + float64(quotas_new-quotas_old))
 	}
 
-	if (cr.lambdaPrevious == 1) && (lambda == 1) {
-		if quotas_new != 0 {
-			if err := cr.updateContainerCPUQuota(container, quotas_new); err != nil {
-				log.Println(err.Error())
-			}
-		}
-	} else {
+	if !((cr.lambdaPrevious >= 1) && (lambda >= 1)) {
 		for f, s := range cr.Registry {
 			if lambda < 1.0 {
 				s.Quotas = lowerBound(int64(lambda * float64(s.DesiredQuotas)))
