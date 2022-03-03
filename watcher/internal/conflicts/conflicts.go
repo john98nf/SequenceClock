@@ -133,10 +133,18 @@ func (cr *ConflictResolver) UpdateRegistry(req *wrq.Request) (bool, error) {
 		quotas_old := state.DesiredQuotas
 		state.Requests.Current, state.DesiredQuotas = req.ID, quotas
 		state.Quotas = quotas
-		if err := cr.updateContainerCPUQuota(state.Container, quotas); err != nil {
-			log.Println(err.Error())
+		if quotas > CPU_PERIOD_OPENWHISK_DEFAULT {
+			if quotas_old <= CPU_PERIOD_OPENWHISK_DEFAULT {
+				if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
+					log.Println(err.Error())
+				}
+			}
+		} else {
+			if err := cr.updateContainerCPUQuota(state.Container, quotas); err != nil {
+				log.Println(err.Error())
+			}
 		}
-		cr.ReconfigureRegistry(quotas, quotas_old)
+		//cr.ReconfigureRegistry(quotas, quotas_old)
 	} else {
 		state.Requests.Active[req.ID] = quotas
 	}
@@ -158,24 +166,34 @@ func (cr *ConflictResolver) RemoveFromRegistry(rs wrq.ResetRequest) error {
 	if state.Requests.Current == rs.ID {
 		if len(state.Requests.Active) == 0 {
 			// TO DO: Solve Openwhisk autoscaling problem
-			if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
-				log.Println(err.Error())
+			if state.Quotas <= CPU_PERIOD_OPENWHISK_DEFAULT {
+				if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
+					log.Println(err.Error())
+				}
 			}
 			delete(cr.Registry, rs.Function)
-			if len(cr.Registry) != 0 {
-				cr.ReconfigureRegistry(0, state.DesiredQuotas)
-			} else {
-				cr.lambdaPrevious = 0
-			}
+			// if len(cr.Registry) != 0 {
+			// 	cr.ReconfigureRegistry(0, state.DesiredQuotas)
+			// } else {
+			// 	cr.lambdaPrevious = 0
+			// }
 		} else {
 			quotas_old := state.DesiredQuotas
 			state.Requests.Current, state.DesiredQuotas = nextRequest(state)
 			state.Quotas = state.DesiredQuotas
 			delete(state.Requests.Active, state.Requests.Current)
-			if err := cr.updateContainerCPUQuota(state.Container, state.Quotas); err != nil {
-				log.Println(err.Error())
+			if state.Quotas > CPU_PERIOD_OPENWHISK_DEFAULT {
+				if quotas_old <= CPU_PERIOD_OPENWHISK_DEFAULT {
+					if err := cr.updateContainerCPUQuota(state.Container, -1); err != nil {
+						log.Println(err.Error())
+					}
+				}
+			} else {
+				if err := cr.updateContainerCPUQuota(state.Container, state.Quotas); err != nil {
+					log.Println(err.Error())
+				}
 			}
-			cr.ReconfigureRegistry(state.DesiredQuotas, quotas_old)
+			//cr.ReconfigureRegistry(state.DesiredQuotas, quotas_old)
 		}
 	} else {
 		if _, ok := state.Requests.Active[rs.ID]; !ok {
